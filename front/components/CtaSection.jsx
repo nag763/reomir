@@ -4,11 +4,12 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import GoogleIcon from './GoogleIcon';
+import { signIn } from 'next-auth/react';
 
 const CtaSection = () => {
   // IMPORTANT: Replace this alert with your actual Google Login implementation
   const handleLoginClick = () => {
-    alert('Implement Google Login Here!');
+    signIn('google')
   };
 
   return (

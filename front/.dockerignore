@@ -22,3 +22,5 @@ yarn-error.log*
 
 # Other development-related files
 README.md
+
+.env.local

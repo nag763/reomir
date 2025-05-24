@@ -1,4 +1,4 @@
-name: Deploy Cloud Run Service
+name: Deploy Cloud Run Agent Service
 
 on:
   push:

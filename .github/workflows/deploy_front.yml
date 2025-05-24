@@ -1,0 +1,55 @@
+name: Deploy Cloud Run Front Service
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'front/**' 
+
+env:
+  # --- GCP Cloud Run Variables ---
+  GCP_PROJECT_ID: reomir # Your GCP project ID
+  GCP_REGION: europe-west1 # Cloud Run region
+  GAR_REPOSITORY_ID: reomir # Artifact Registry repo ID (from Terraform's repository_id)
+  CLOUD_RUN_SERVICE_NAME: reomir-front # Cloud Run service name
+
+jobs:
+  deploy_cloud_run:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write' # Required for Workload Identity Federation (GCP)
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Google Auth (Workload Identity Federation)
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool/providers/github-provider
+        service_account: github-actions-deployer@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+    - name: Set up Docker for Artifact Registry
+      run: |-
+        gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev
+
+    - name: Build and push Docker image to Artifact Registry
+      working-directory: ./front 
+      # Assumes your Dockerfile is in the root of your repository
+      run: |-
+        # Construct the full image path using environment variables and the commit SHA
+        IMAGE_URI="${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY_ID }}/${{ env.CLOUD_RUN_SERVICE_NAME }}:latest"
+        
+        docker build -t $IMAGE_URI .
+        docker push $IMAGE_URI
+
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.CLOUD_RUN_SERVICE_NAME }}
+        region: ${{ env.GCP_REGION }}
+        image: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.GAR_REPOSITORY_ID }}/${{ env.CLOUD_RUN_SERVICE_NAME }}:latest

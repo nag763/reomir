@@ -1,0 +1,8 @@
+# Common terraform ignored files
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# env
+.env

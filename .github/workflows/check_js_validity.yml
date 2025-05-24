@@ -9,8 +9,6 @@ on:
   pull_request:
     branches:
       - master # Or your default branch like 'master'
-    paths:
-        - 'front/**' # Trigger only if changes are within the 'front/' directory
 
 jobs:
   lint-and-format:

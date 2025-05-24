@@ -1,9 +1,6 @@
 name: Check Pyink Formatting
 
 on:
-  pull_request:
-    paths:
-      - './agent/**/*.py'
   push:
     paths:
       - './agent/**/*.py'

@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - './agent/**/*.py'
+  pull_request:
 
 jobs:
   pyink-check:

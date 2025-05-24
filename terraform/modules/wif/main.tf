@@ -4,7 +4,7 @@
 resource "google_iam_workload_identity_pool" "github_actions_pool" {
   project                   = var.gcp_project
   workload_identity_pool_id = var.pool_name
-  display_name              = "GitHub Actions Pool"
+  display_name              = "GitHub Pool"
   description               = "Workload Identity Pool for GitHub Actions"
   disabled                  = false
 }

@@ -51,7 +51,7 @@ module "cloudrun" {
   # Specify the GCP region and project ID
   gcp_region            = local.region
   gcp_project           = data.google_project.project.project_id
-  image                 = "${local.region}.pkg.dev/${local.project_name}/${local.project_name}/agent:latest"
+  image                 = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/agent:latest"
 
   depends_on = [
     module.api,
@@ -99,7 +99,7 @@ module "wif" {
   gcp_project     = data.google_project.project.project_id
   gcp_project_number = data.google_project.project.number
 
-  pool_name          = "github-actions-pool"
+  pool_name          = "gh-actions-pool"
   issuer_uri         = "https://token.actions.githubusercontent.com"
   service_account_id = module.service_account.id
 

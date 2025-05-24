@@ -1,6 +1,6 @@
 {
   "extends": [
-    "stylelint-config-tailwindcss/scss" 
+    "stylelint-config-tailwindcss" 
   ],
   "plugins": ["stylelint-order"],
   "rules": {

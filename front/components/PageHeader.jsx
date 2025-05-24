@@ -1,29 +1,21 @@
-'use client';
-
 import React from 'react';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-} from '@/components/ui/card';
+import { Rocket } from 'lucide-react';
 
-const FeatureCard = ({ icon, title, description, tag }) => (
-  <Card className="bg-gray-800 border-gray-700 text-gray-100 shadow-lg hover:shadow-indigo-500/30 transition-shadow duration-300">
-    <CardHeader>
-      <div className="flex items-center mb-3">
-        <div className="p-3 rounded-full bg-gray-900 mr-4">{icon}</div>
-        <CardTitle className="text-xl font-semibold">{title}</CardTitle>
-      </div>
-      <CardDescription className="text-gray-400">{description}</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <span className="text-xs text-gray-500 bg-gray-900 px-2 py-1 rounded">
-        {tag}
-      </span>
-    </CardContent>
-  </Card>
+const PageHeader = () => (
+    <header className="text-center mb-16 md:mb-24">
+        <div className="inline-block bg-gray-800 p-4 rounded-lg shadow-lg mb-4">
+            <Rocket className="h-12 w-12 text-indigo-400" />
+        </div>
+        <h1 className="text-4xl md:text-6xl font-bold mb-2">
+            reomir<span className="text-indigo-400">.</span>
+        </h1>
+        <p className="text-lg md:text-xl text-gray-400">
+            Your Internal Developer Hub: Streamlined. Secure. Smart.
+        </p>
+        <div className="mt-4 text-xs text-gray-600">
+            {`// Built with <NextJS /> <React /> <Tailwind /> <shadcn/ui />`}
+        </div>
+    </header>
 );
 
-export default FeatureCard;
+export default PageHeader;

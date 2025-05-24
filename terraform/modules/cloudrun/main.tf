@@ -2,7 +2,7 @@
 # GCP Cloud Run Service for app deployment
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "default" {
-  name     = "reomir-assistant"
+  name     = var.service_name
   location = var.gcp_region
   project  = var.gcp_project
 

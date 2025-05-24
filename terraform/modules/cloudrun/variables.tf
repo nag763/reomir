@@ -12,3 +12,9 @@ variable "image" {
   type        = string
   description = "The Docker image to deploy."
 }
+
+variable "service_name" {
+  type        = string
+  description = "The name of the Cloud Run service."
+
+}

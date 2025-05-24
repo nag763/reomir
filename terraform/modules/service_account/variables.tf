@@ -6,7 +6,7 @@ variable "gcp_project" {
 
 # Variable for the list of roles to assign to the service account
 variable "github_actions_roles" {
-  type = set(string)
+  type        = set(string)
   description = "A list of roles to assign to the service account."
   default = [
     "roles/run.invoker",

@@ -49,9 +49,10 @@ module "cloudrun" {
   source = "./modules/cloudrun"
 
   # Specify the GCP region and project ID
-  gcp_region            = local.region
-  gcp_project           = data.google_project.project.project_id
-  image                 = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/agent:latest"
+  gcp_region   = local.region
+  gcp_project  = data.google_project.project.project_id
+  image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/agent:latest"
+  service_name = "reomir-agent"
 
   depends_on = [
     module.api,
@@ -96,7 +97,7 @@ module "wif" {
   source = "./modules/wif"
 
   # Specify the GCP project ID
-  gcp_project     = data.google_project.project.project_id
+  gcp_project        = data.google_project.project.project_id
   gcp_project_number = data.google_project.project.number
 
   pool_name          = "gh-actions-pool"

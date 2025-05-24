@@ -18,7 +18,7 @@ variable "issuer_uri" {
   type        = string
   description = "The issuer URI for the workload identity pool."
   default     = "https://accounts.google.com"
-  
+
 }
 variable "service_account_id" {
   type        = string

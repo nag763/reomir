@@ -14,5 +14,5 @@ resource "google_project_iam_member" "github_actions_sa" {
 
 output "id" {
   value = google_service_account.github_actions_sa.id
-  
+
 }

@@ -3,7 +3,7 @@ name: Lint and Format Check
 on:
   push:
     branches:
-      - master # Or your default branch like 'master'
+      - '*' # Or your default branch like 'master'
     paths:
         - 'front/**' # Trigger only if changes are within the 'front/' directory
   pull_request:

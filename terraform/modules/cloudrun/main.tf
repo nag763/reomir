@@ -11,7 +11,7 @@ resource "google_cloud_run_v2_service" "default" {
       image = var.image
       # Map to port 8000
       ports {
-        container_port = 8000
+        container_port = var.container_port
       }
     }
 

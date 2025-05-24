@@ -3,16 +3,12 @@ name: Terraform Lint & Validate
 on:
   push:
     branches:
-      - main
       - master
     paths:
       - 'terraform/**' # Trigger only if changes are within the 'terraform/' directory
   pull_request:
     branches:
-      - main
       - master
-    paths:
-      - 'terraform/**' 
 
 jobs:
   terraform-checks:
@@ -29,6 +25,12 @@ jobs:
         uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: "latest" # Consider pinning to a specific version like "1.8.x"
+
+
+      - name: Terraform init
+        id: init
+        # Commands will now implicitly run from the 'terraform/' directory
+        run: terraform init
 
       - name: Terraform Format Check
         id: fmt

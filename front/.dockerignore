@@ -1,0 +1,24 @@
+# Git and version control
+.git
+.gitignore
+
+# Node.js dependencies (installed within Docker)
+node_modules
+
+# Next.js build output (handled by Docker build stages)
+.next
+
+# Local environment variables (use AWS secrets management)
+.env*.local
+
+# Operating system specific files
+.DS_Store
+Thumbs.db
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Other development-related files
+README.md

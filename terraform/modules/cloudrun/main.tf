@@ -38,3 +38,13 @@ resource "google_cloud_run_v2_service" "default" {
     ]
   }
 }
+
+resource "google_cloud_run_service_iam_member" "noauth" {
+  count    = var.open_to_public ? 1 : 0
+  location = google_cloud_run_v2_service.default.location
+  project  = google_cloud_run_v2_service.default.project
+  service  = google_cloud_run_v2_service.default.name
+
+  role   = "roles/run.invoker"
+  member = "allUsers"
+}

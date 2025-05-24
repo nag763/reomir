@@ -24,3 +24,9 @@ variable "container_port" {
   description = "The port the container listens on."
   default     = 8000
 }
+
+variable "open_to_public" {
+  type        = bool
+  description = "Whether to allow unauthenticated invocations."
+  default     = false
+}

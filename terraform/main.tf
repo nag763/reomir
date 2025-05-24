@@ -114,10 +114,11 @@ module "cloudrun_front" {
   source = "./modules/cloudrun"
 
   # Specify the GCP region and project ID
-  gcp_region   = local.region
-  gcp_project  = data.google_project.project.project_id
-  image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-front:latest"
-  service_name = "reomir-front"
+  gcp_region     = local.region
+  gcp_project    = data.google_project.project.project_id
+  image          = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-front:latest"
+  service_name   = "reomir-front"
+  open_to_public = true
 
   container_port = 3000
 

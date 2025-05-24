@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'agent/**' 
 
 env:
   # --- GCP Cloud Run Variables ---

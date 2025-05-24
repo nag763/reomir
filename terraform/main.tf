@@ -52,6 +52,7 @@ module "cloudrun" {
   gcp_region            = local.region
   gcp_project           = data.google_project.project.project_id
   image                 = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/agent:latest"
+  service_name          = "reomir-agent"
 
   depends_on = [
     module.api,

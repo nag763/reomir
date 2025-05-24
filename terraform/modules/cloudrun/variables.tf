@@ -18,3 +18,9 @@ variable "service_name" {
   description = "The name of the Cloud Run service."
 
 }
+
+variable "container_port" {
+  type        = number
+  description = "The port the container listens on."
+  default     = 8000
+}

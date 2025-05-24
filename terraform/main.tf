@@ -44,22 +44,6 @@ module "api" {
   ]
 }
 
-# Module for deploying Cloud Run service
-module "cloudrun" {
-  source = "./modules/cloudrun"
-
-  # Specify the GCP region and project ID
-  gcp_region   = local.region
-  gcp_project  = data.google_project.project.project_id
-  image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/agent:latest"
-  service_name = "reomir-agent"
-
-  depends_on = [
-    module.api,
-    module.repository,
-  ]
-}
-
 # Module for managing Artifact Registry repository
 module "repository" {
   source = "./modules/repository"
@@ -106,5 +90,39 @@ module "wif" {
 
   depends_on = [
     module.api
+  ]
+}
+
+# Module for deploying Cloud Run service
+module "cloudrun_agent" {
+  source = "./modules/cloudrun"
+
+  # Specify the GCP region and project ID
+  gcp_region   = local.region
+  gcp_project  = data.google_project.project.project_id
+  image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-agent:latest"
+  service_name = "reomir-agent"
+
+  depends_on = [
+    module.api,
+    module.repository,
+  ]
+}
+
+# Module for deploying Cloud Run service
+module "cloudrun_front" {
+  source = "./modules/cloudrun"
+
+  # Specify the GCP region and project ID
+  gcp_region   = local.region
+  gcp_project  = data.google_project.project.project_id
+  image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-front:latest"
+  service_name = "reomir-front"
+
+  container_port = 3000
+
+  depends_on = [
+    module.api,
+    module.repository,
   ]
 }

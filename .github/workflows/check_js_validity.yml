@@ -1,0 +1,59 @@
+name: Lint and Format Check
+
+on:
+  push:
+    branches:
+      - master # Or your default branch like 'master'
+    paths:
+        - 'front/**' # Trigger only if changes are within the 'front/' directory
+  pull_request:
+    branches:
+      - master # Or your default branch like 'master'
+    paths:
+        - 'front/**' # Trigger only if changes are within the 'front/' directory
+
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front # Set the working directory to the agent folder
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history for lint-staged to work correctly if you add it later
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use a Node.js version compatible with your Next.js project
+
+      - name: Install dependencies
+        run: npm ci # Use npm ci for clean installs in CI environments
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Prettier check
+        # This checks if there are any formatting issues without fixing them
+        run: npm run check-format
+
+      # Optional: Run Stylelint check if you configured it
+      - name: Run Stylelint check
+        run: npm run stylelint
+        # If Stylelint is optional and should not fail the build for warnings, you can add:
+        # continue-on-error: true
+
+      - name: Verify no uncommitted changes
+        # This step ensures that 'npm run format' would not have made changes
+        # if auto-fix was allowed, or simply confirms all files are clean
+        run: |
+          git status --porcelain
+          if [[ $(git status --porcelain) ]]; then
+            echo "::error::Unformatted files found! Please run 'npm run format' and commit changes."
+            git diff
+            exit 1
+          fi

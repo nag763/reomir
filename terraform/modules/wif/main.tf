@@ -2,10 +2,10 @@
 # GCP Workload Identity Federation Pool for GitHub Actions
 # ------------------------------------------------------------------------------
 resource "google_iam_workload_identity_pool" "github_actions_pool" {
-  project                   = var.gcp_project_id
+  project                   = var.gcp_project
   workload_identity_pool_id = var.pool_name
-  display_name              = "${var.pool_name} Pool"
-  description               = "Workload Identity Pool for ${var.pool_name}"
+  display_name              = "GitHub Actions Pool"
+  description               = "Workload Identity Pool for GitHub Actions"
   disabled                  = false
 }
 
@@ -14,11 +14,11 @@ resource "google_iam_workload_identity_pool" "github_actions_pool" {
 # GCP Workload Identity Provider for GitHub OIDC
 # ------------------------------------------------------------------------------
 resource "google_iam_workload_identity_pool_provider" "github_provider" {
-  project                            = var.gcp_project_id
+  project                            = var.gcp_project
   workload_identity_pool_id          = google_iam_workload_identity_pool.github_actions_pool.workload_identity_pool_id
-  workload_identity_pool_provider_id = "${var.pool_name}-provider"
-  display_name                       = "${var.pool_name} OIDC Provider"
-  description                        = "OIDC Provider for ${var.pool_name} "
+  workload_identity_pool_provider_id = "github-provider"
+  display_name                       = "GitHub OIDC Provider"
+  description                        = "OIDC Provider for GitHub Actions"
   attribute_condition                = "attribute.repository == 'nag763/reomir'"
   attribute_mapping = {
     "google.subject"       = "assertion.sub"
@@ -27,7 +27,7 @@ resource "google_iam_workload_identity_pool_provider" "github_provider" {
     "attribute.repository" = "assertion.repository"
   }
   oidc {
-    issuer_uri = var.issuer_uri
+    issuer_uri = "https://token.actions.githubusercontent.com"
   }
   disabled = false
 }

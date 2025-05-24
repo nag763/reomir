@@ -8,7 +8,7 @@ resource "google_project_iam_member" "github_actions_sa" {
   for_each = var.github_actions_roles
 
   project = var.gcp_project
-  role    = "roles/run.admin"
+  role    = each.value
   member  = "serviceAccount:${google_service_account.github_actions_sa.email}"
 }
 

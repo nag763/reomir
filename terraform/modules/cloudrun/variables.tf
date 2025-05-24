@@ -7,3 +7,8 @@ variable "gcp_project" {
   type        = string
   description = "The GCP project ID."
 }
+
+variable "image" {
+  type        = string
+  description = "The Docker image to deploy."
+}

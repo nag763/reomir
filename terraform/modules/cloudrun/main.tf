@@ -2,13 +2,13 @@
 # GCP Cloud Run Service for app deployment
 # ------------------------------------------------------------------------------
 resource "google_cloud_run_v2_service" "default" {
-  name     = "nag763-assistant"
+  name     = "reomir-assistant"
   location = var.gcp_region
   project  = var.gcp_project
 
   template {
     containers {
-      image = "europe-west1-docker.pkg.dev/${var.gcp_project}/reomir:latest"
+      image = var.image
       # Map to port 8000
       ports {
         container_port = 8000

@@ -1,6 +1,7 @@
-resource "google_artifact_registry_repository" "docker_repo" {
+resource "google_artifact_registry_repository" "default" {
   location      = var.gcp_region
-  repository_id = var.gcp_project
-  description   = "Docker repository for Cloud Run images"
+  repository_id = "reomir"
+  project       = var.gcp_project
+  description   = "Docker repository"
   format        = "DOCKER"
 }

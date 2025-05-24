@@ -1,10 +1,9 @@
-
-variable "apis" {
-  description = "List of APIs to enable"
-  type        = list(string)
+variable "project_id" {
+  type        = string
+  description = "The ID of the project"
 }
 
-variable "project_id" {
-  description = "The project ID to enable the APIs for"
-  type        = string
+variable "apis" {
+  type        = list(string)
+  description = "A list of apis to enable"
 }

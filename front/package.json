@@ -7,10 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,css,scss,md,json}\"",
     "check-format": "prettier --check \"**/*.{js,jsx,ts,tsx,css,scss,md,json}\"",
     "stylelint": "stylelint \"**/*.{css,scss}\"",
-    "stylelint:fix": "stylelint \"**/*.{css,scss}\" --fix"
+    "stylelint:fix": "stylelint \"**/*.{css,scss}\" --fix",
+    "ci:check": "npm run lint && npm run check-format && npm run stylelint",
+    "style:fix": "npm run lint:fix && npm run format && npm run stylelint:fix"
   },
   "dependencies": {
     "next": "15.1.8",

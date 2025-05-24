@@ -1,7 +1,5 @@
 {
-  "extends": [
-    "stylelint-config-tailwindcss" 
-  ],
+  "extends": ["stylelint-config-tailwindcss"],
   "plugins": ["stylelint-order"],
   "rules": {
     "order/properties-alphabetical-order": true

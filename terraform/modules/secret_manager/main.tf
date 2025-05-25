@@ -14,3 +14,13 @@ resource "google_secret_manager_secret_version" "secret_version" {
   secret      = google_secret_manager_secret.secret[each.key].id
   secret_data = each.value
 }
+
+output "secrets_id" {
+  description = "A map of logical secret names to their full Secret Manager resource IDs."
+  value = {
+    # Correctly iterate over the map created by for_each
+    for k, v in google_secret_manager_secret.secret :
+    # Map the key (e.g., "GOOGLE_CLIENT_ID") to the full resource ID (v.id)
+    k => v.id
+  }
+}

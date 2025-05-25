@@ -7,13 +7,42 @@ resource "google_cloud_run_v2_service" "default" {
   project  = var.gcp_project
 
   template {
+
+
+    service_account = var.service_account_email
+
     containers {
       image = var.image
-      # Map to port 8000
+
       ports {
         container_port = var.container_port
       }
+
+      dynamic "env" {
+        for_each = var.environment_variables
+
+        content {
+          name = env.value.name
+
+          # Set value only if secret_ref is not defined
+          value = try(env.value.secret_ref, null) == null ? env.value.value : null
+
+          # Set value_source only if secret_ref is defined
+          dynamic "value_source" {
+            for_each = try(env.value.secret_ref, null) != null ? [env.value.secret_ref] : []
+            content {
+              secret_key_ref {
+                # Construct the full secret resource name: projects/PROJECT_ID/secrets/SECRET_ID
+                secret  = value_source.value.secret_id
+                version = value_source.value.version
+              }
+            }
+          }
+        }
+      }
+
     }
+
 
     scaling {
       min_instance_count = 0

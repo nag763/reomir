@@ -47,6 +47,15 @@ module "api" {
   ]
 }
 
+
+module "secret_manager" {
+  source  = "./modules/secret_manager"
+  secrets = var.secrets
+
+  depends_on = [module.api]
+
+}
+
 # Module for managing Artifact Registry repository
 module "repository" {
   source = "./modules/repository"
@@ -61,17 +70,36 @@ module "repository" {
 }
 
 # Module for managing service account
-module "service_account" {
+module "service_account_gh" {
   source = "./modules/service_account"
+
+  sa_id = "github-actions-deployer"
 
   # Specify the GCP project ID
   gcp_project = data.google_project.project.project_id
 
-  github_actions_roles = [
+  roles = [
     "roles/run.admin",                # For Cloud Run deployments
     "roles/artifactregistry.writer",  # For pushing Docker images
     "roles/iam.serviceAccountUser",   # Allows SA to impersonate itself for Cloud Run runtime
     "roles/cloudbuild.builds.editor", # For Cloud Build implicit build from source
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+module "service_account_front" {
+  source = "./modules/service_account"
+
+  sa_id = "cloudrun-front"
+
+  # Specify the GCP project ID
+  gcp_project = data.google_project.project.project_id
+
+  roles = [
+    "roles/secretmanager.secretAccessor"
   ]
 
   depends_on = [
@@ -89,7 +117,7 @@ module "wif" {
 
   pool_name          = "gh-actions-pool"
   issuer_uri         = "https://token.actions.githubusercontent.com"
-  service_account_id = module.service_account.id
+  service_account_id = module.service_account_gh.id
 
   depends_on = [
     module.api
@@ -123,18 +151,53 @@ module "cloudrun_front" {
   service_name   = "reomir-front"
   open_to_public = true
 
+  service_account_email = module.service_account_front.email
+
+  environment_variables = [
+    {
+      # First environment variable: FIREBASE_API_KEY
+      name = "NEXTAUTH_SECRET",
+      secret_ref = {
+        # Assuming module.secret_manager outputs a map called 'secrets_id'
+        secret_id = module.secret_manager.secrets_id["NEXTAUTH_SECRET"]
+        version   = "latest"
+      }
+      # Make sure 'value' is not present
+    },
+    {
+      name = "NEXTAUTH_URL",
+      secret_ref = {
+        # Assuming module.secret_manager outputs a map called 'secrets_id'
+        secret_id = module.secret_manager.secrets_id["NEXTAUTH_URL"]
+        version   = "latest"
+      }
+    },
+    {
+      # First environment variable: GOOGLE_CLIENT_ID
+      name = "GOOGLE_CLIENT_ID",
+      # Make sure 'value' is not present when using 'secret_ref'
+      secret_ref = {
+        # Assuming module.secret_manager outputs a map called 'secrets_id'
+        secret_id = module.secret_manager.secrets_id["GOOGLE_CLIENT_ID"]
+        version   = "latest"
+      }
+    }, # <-- Comma separating the objects
+    {
+      # Second environment variable: GOOGLE_CLIENT_SECRET
+      name = "GOOGLE_CLIENT_SECRET",
+      # Make sure 'value' is not present when using 'secret_ref'
+      secret_ref = {
+        # Assuming module.secret_manager outputs a map called 'secrets_id'
+        secret_id = module.secret_manager.secrets_id["GOOGLE_CLIENT_SECRET"]
+        version   = "latest"
+      }
+    }
+  ]
+
   container_port = 3000
 
   depends_on = [
     module.api,
-    module.repository,
+    module.secret_manager
   ]
-}
-
-module "secret_manager" {
-  source  = "./modules/secret_manager"
-  secrets = var.secrets
-
-  depends_on = [module.api]
-
 }

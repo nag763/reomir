@@ -1,6 +1,24 @@
 import NextAuth from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 
+import { FirestoreAdapter } from '@auth/firebase-adapter';
+import { getFirestore } from 'firebase-admin/firestore';
+import * as admin from 'firebase-admin';
+
+const serviceAccountPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
+if (!admin.apps.length) {
+  if (!serviceAccountPath) {
+    throw new Error(
+      'FIREBASE_SERVICE_ACCOUNT_PATH environment variable not set.',
+    );
+  }
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccountPath),
+  });
+}
+
+const db = getFirestore();
+
 export const authOptions = {
   providers: [
     GoogleProvider({
@@ -8,7 +26,11 @@ export const authOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     }),
   ],
-  debug: true,
+  session: {
+    strategy: 'jwt',
+  },
+  adapter: FirestoreAdapter(db),
+  debug: process.env.NODE_ENV === 'development',
   callbacks: {
     async jwt({ token, account, profile }) {
       if (account) {

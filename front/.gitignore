@@ -5,3 +5,5 @@ out
 *.log
 *.swp
 .env*
+
+*firebase*admin*.json

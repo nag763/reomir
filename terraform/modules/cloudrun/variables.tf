@@ -53,8 +53,8 @@ variable "service_account_email" {
 # ------------------------------------------------------------------------------
 variable "environment_variables" {
   type = list(object({
-    name       = string
-    value      = optional(string)
+    name  = string
+    value = optional(string)
     secret_ref = optional(object({
       secret_id = string
       version   = string

@@ -41,7 +41,7 @@ data "google_project" "project" {
 # Module to enable required APIs
 # ------------------------------------------------------------------------------
 module "api" {
-  source = "./modules/api"
+  source     = "./modules/api"
   project_id = data.google_project.project.project_id
   apis = [
     "aiplatform.googleapis.com",

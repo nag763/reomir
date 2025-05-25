@@ -9,7 +9,7 @@ import { signIn } from 'next-auth/react';
 const CtaSection = () => {
   // IMPORTANT: Replace this alert with your actual Google Login implementation
   const handleLoginClick = () => {
-    signIn('google', { callbackUrl: '/auth/dashboard' })
+    signIn('google', { callbackUrl: '/auth/dashboard' });
   };
 
   return (

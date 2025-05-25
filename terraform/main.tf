@@ -132,9 +132,9 @@ module "cloudrun_front" {
 }
 
 module "secret_manager" {
-  source = "./modules/secret_manager"
+  source  = "./modules/secret_manager"
   secrets = var.secrets
 
-  depends_on = [ module.api ]
-  
+  depends_on = [module.api]
+
 }

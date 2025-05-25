@@ -14,7 +14,7 @@ terraform {
     # Configure the Google provider
     google = {
       source  = "hashicorp/google"
-      version = "~> 4.0"
+      version = "~> 5.0"
     }
   }
 }
@@ -51,7 +51,9 @@ module "api" {
     "iam.googleapis.com",
     "identitytoolkit.googleapis.com",
     "iap.googleapis.com",
-    "secretmanager.googleapis.com"
+    "secretmanager.googleapis.com",
+    "firebase.googleapis.com",
+    "firestore.googleapis.com"
   ]
 }
 
@@ -207,3 +209,4 @@ module "cloudrun_front" {
     module.secret_manager
   ]
 }
+

@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/google"
       version = "~> 5.0"
     }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
+    }
   }
 }
 
@@ -53,7 +57,8 @@ module "api" {
     "iap.googleapis.com",
     "secretmanager.googleapis.com",
     "firebase.googleapis.com",
-    "firestore.googleapis.com"
+    "firestore.googleapis.com",
+    "appengine.googleapis.com"
   ]
 }
 
@@ -210,3 +215,14 @@ module "cloudrun_front" {
   ]
 }
 
+module "firebase" {
+  source = "./modules/firebase"
+
+  gcp_project = data.google_project.project.project_id
+  region      = local.region
+
+  depends_on = [
+    module.api,
+    module.secret_manager
+  ]
+}

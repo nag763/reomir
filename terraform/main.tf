@@ -43,6 +43,7 @@ module "api" {
     "iam.googleapis.com",
     "identitytoolkit.googleapis.com",
     "iap.googleapis.com",
+    "secretmanager.googleapis.com"
   ]
 }
 
@@ -130,3 +131,10 @@ module "cloudrun_front" {
   ]
 }
 
+module "secret_manager" {
+  source = "./modules/secret_manager"
+  secrets = var.secrets
+
+  depends_on = [ module.api ]
+  
+}

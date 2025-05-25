@@ -41,6 +41,8 @@ module "api" {
     "run.googleapis.com",
     "logging.googleapis.com",
     "iam.googleapis.com",
+    "identitytoolkit.googleapis.com",
+    "iap.googleapis.com",
   ]
 }
 
@@ -126,4 +128,27 @@ module "cloudrun_front" {
     module.api,
     module.repository,
   ]
+}
+
+module "oauth" {
+  source = "./modules/oauth"
+  application_title = "Reomir OAuth Application"
+  support_email      = "loic.labeye.contact@pm.me"
+  gcp_project_id    = data.google_project.project.project_id
+  depends_on = [
+    module.api,
+  ]
+}
+
+output "oauth_client_id" {
+  value       = module.oauth.oauth_client_id
+  description = "The OAuth 2.0 Client ID for your web application."
+  sensitive   = false # Client ID is public
+}
+
+output "oauth_client_secret" {
+  value       = module.oauth.oauth_client_secret
+  description = "The OAuth 2.0 Client Secret for your web application."
+  sensitive   = true # Client secret must be kept confidential
+  
 }

@@ -49,7 +49,7 @@ const TopBar = ({ user }) => {
                        <div className="text-xs font-normal">{user?.email || 'No email'}</div>
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator className="bg-gray-700" />
-                    <Link href="/settings" passHref>
+                    <Link href="/auth/settings" passHref>
                         <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 !text-gray-100 focus:bg-gray-700 focus:!text-white">
                             <Settings className="mr-2 h-4 w-4" />
                             <span>Parameters</span>

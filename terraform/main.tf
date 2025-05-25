@@ -165,6 +165,14 @@ module "cloudrun_front" {
       # Make sure 'value' is not present
     },
     {
+      name = "NEXTAUTH_URL",
+      secret_ref = {
+        # Assuming module.secret_manager outputs a map called 'secrets_id'
+        secret_id = module.secret_manager.secrets_id["NEXTAUTH_URL"]
+        version   = "latest"
+      }
+    },
+    {
       # First environment variable: GOOGLE_CLIENT_ID
       name = "GOOGLE_CLIENT_ID",
       # Make sure 'value' is not present when using 'secret_ref'

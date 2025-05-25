@@ -14,7 +14,11 @@ terraform {
     # Configure the Google provider
     google = {
       source  = "hashicorp/google"
-      version = "~> 4.0"
+      version = "~> 5.0"
+    }
+    google-beta = {
+      source  = "hashicorp/google-beta"
+      version = "~> 5.0"
     }
   }
 }
@@ -51,7 +55,10 @@ module "api" {
     "iam.googleapis.com",
     "identitytoolkit.googleapis.com",
     "iap.googleapis.com",
-    "secretmanager.googleapis.com"
+    "secretmanager.googleapis.com",
+    "firebase.googleapis.com",
+    "firestore.googleapis.com",
+    "appengine.googleapis.com"
   ]
 }
 
@@ -197,10 +204,32 @@ module "cloudrun_front" {
         secret_id = module.secret_manager.secrets_id["GOOGLE_CLIENT_SECRET"]
         version   = "latest"
       }
+    },
+    {
+      name = "FIREBASE_SERVICE_ACCOUNT_JSON",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_SERVICE_ACCOUNT_JSON"]
+        version   = "latest"
+      }
     }
   ]
 
   container_port = 3000
+
+  depends_on = [
+    module.api,
+    module.secret_manager
+  ]
+}
+
+# ------------------------------------------------------------------------------
+# Module for deploying Firebase
+# ------------------------------------------------------------------------------
+module "firebase" {
+  source = "./modules/firebase"
+
+  gcp_project = data.google_project.project.project_id
+  region      = local.region
 
   depends_on = [
     module.api,

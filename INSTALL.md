@@ -42,7 +42,18 @@ To configure the OAuth client, follow these steps:
 
 See the official Google documentation for more details: [https://developers.google.com/identity/protocols/oauth2/web-server](https://developers.google.com/identity/protocols/oauth2/web-server)
 
-### 3 - Set tfvars
+### 3 - Enable firebaae for project
+
+
+Unfortunately, Terraform is currently unable to enable Firebase automatically. You must manually enable it via the Google Cloud Console:
+
+1.  Go to the [Firebase Console](https://console.firebase.google.com/).
+2.  Click "Add project".
+3.  Select your Google Cloud project (the same one you're using for Terraform).
+4.  Follow the prompts to set up Firebase.
+
+
+### 4 - Set tfvars
 
 As your project contains sensitive credentials dependent on your configuraiton, add a terraform.tfvars file in terraform folder with the following values
 
@@ -57,7 +68,7 @@ secrets = {
 
 This will apply the secrets on terraform apply
 
-### 4 - Apply Terraform Configuration
+### 5 - Apply Terraform Configuration
 
 With the packages installed, apply the Terraform configuration to your GCP project:
 

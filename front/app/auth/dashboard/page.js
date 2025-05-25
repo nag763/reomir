@@ -1,6 +1,5 @@
 'use client';
 import React from 'react';
-import Sidebar from '@/components/Sidebar';
 import TopBar from '@/components/TopBar';
 import CommandBar from '@/components/CommandBar';
 
@@ -35,8 +34,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-mono flex">
-      <Sidebar />
-
       {/* Main Content Area - Adjusts for sidebar width */}
       <div className="flex-1 ml-16 flex flex-col h-screen">
         <TopBar user={user} />

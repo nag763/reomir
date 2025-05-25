@@ -13,8 +13,8 @@ import { LayoutDashboard, Newspaper, Github, Settings } from 'lucide-react';
 const navItems = [
   { href: '/auth/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/auth/news', icon: Newspaper, label: 'News Feed' },
-  { href: 'auth//github', icon: Github, label: 'GitHub' },
-  { href: '/settings', icon: Settings, label: 'Settings' },
+  { href: '/auth//github', icon: Github, label: 'GitHub' },
+  { href: '/auth/settings', icon: Settings, label: 'Settings' },
 ];
 
 const Sidebar = () => {

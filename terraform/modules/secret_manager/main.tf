@@ -1,3 +1,6 @@
+# ------------------------------------------------------------------------------
+# Create Secret Manager secrets
+# ------------------------------------------------------------------------------
 resource "google_secret_manager_secret" "secret" {
   for_each  = var.secrets
   secret_id = each.key
@@ -9,12 +12,18 @@ resource "google_secret_manager_secret" "secret" {
   }
 }
 
+# ------------------------------------------------------------------------------
+# Add secret versions
+# ------------------------------------------------------------------------------
 resource "google_secret_manager_secret_version" "secret_version" {
   for_each    = var.secrets
   secret      = google_secret_manager_secret.secret[each.key].id
   secret_data = each.value
 }
 
+# ------------------------------------------------------------------------------
+# Output the secret IDs
+# ------------------------------------------------------------------------------
 output "secrets_id" {
   description = "A map of logical secret names to their full Secret Manager resource IDs."
   value = {

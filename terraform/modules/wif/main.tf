@@ -9,7 +9,6 @@ resource "google_iam_workload_identity_pool" "github_actions_pool" {
   disabled                  = false
 }
 
-
 # ------------------------------------------------------------------------------
 # GCP Workload Identity Provider for GitHub OIDC
 # ------------------------------------------------------------------------------

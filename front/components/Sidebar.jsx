@@ -12,15 +12,13 @@ import {
   LayoutDashboard,
   Newspaper,
   Github,
-  Brain,
   Settings,
 } from 'lucide-react';
 
 const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/news', icon: Newspaper, label: 'News Feed' },
-  { href: '/github', icon: Github, label: 'GitHub' },
-  { href: '/confluence', icon: Brain, label: 'Confluence' },
+  { href: '/auth/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/auth/news', icon: Newspaper, label: 'News Feed' },
+  { href: 'auth//github', icon: Github, label: 'GitHub' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 

@@ -4,8 +4,14 @@ variable "gcp_project" {
   description = "The GCP project ID."
 }
 
+variable "sa_id" {
+  type        = string
+  description = "The name of the service account to create."
+}
+
+
 # Variable for the list of roles to assign to the service account
-variable "github_actions_roles" {
+variable "roles" {
   type        = set(string)
   description = "A list of roles to assign to the service account."
   default = [

@@ -22,6 +22,7 @@ export const authOptions = {
       session.idToken = token.idToken;
       return session;
     },
+    secret: process.env.NEXTAUTH_SECRET,
   },
 };
 

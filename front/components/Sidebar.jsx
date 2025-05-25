@@ -8,12 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import {
-  LayoutDashboard,
-  Newspaper,
-  Github,
-  Settings,
-} from 'lucide-react';
+import { LayoutDashboard, Newspaper, Github, Settings } from 'lucide-react';
 
 const navItems = [
   { href: '/auth/dashboard', icon: LayoutDashboard, label: 'Dashboard' },

@@ -1,10 +1,14 @@
+# ------------------------------------------------------------------------------
 # Define local variables
+# ------------------------------------------------------------------------------
 locals {
   region       = "europe-west1"
   project_name = "reomir"
 }
 
+# ------------------------------------------------------------------------------
 # Configure Terraform settings
+# ------------------------------------------------------------------------------
 terraform {
   required_providers {
     # Configure the Google provider
@@ -15,7 +19,9 @@ terraform {
   }
 }
 
+# ------------------------------------------------------------------------------
 # Configure the Google Cloud provider
+# ------------------------------------------------------------------------------
 provider "google" {
   # Specify the Google Cloud project ID
   project = local.project_name
@@ -23,17 +29,19 @@ provider "google" {
   region = "europe-west1"
 }
 
+# ------------------------------------------------------------------------------
 # Retrieve project information
+# ------------------------------------------------------------------------------
 data "google_project" "project" {
   # Retrieve information about the Google Cloud project
   project_id = local.project_name
 }
 
+# ------------------------------------------------------------------------------
 # Module to enable required APIs
+# ------------------------------------------------------------------------------
 module "api" {
   source = "./modules/api"
-  # Enable required Google Cloud APIs
-
   project_id = data.google_project.project.project_id
   apis = [
     "aiplatform.googleapis.com",
@@ -47,20 +55,22 @@ module "api" {
   ]
 }
 
-
+# ------------------------------------------------------------------------------
+# Module for managing secrets
+# ------------------------------------------------------------------------------
 module "secret_manager" {
   source  = "./modules/secret_manager"
   secrets = var.secrets
 
   depends_on = [module.api]
-
 }
 
+# ------------------------------------------------------------------------------
 # Module for managing Artifact Registry repository
+# ------------------------------------------------------------------------------
 module "repository" {
   source = "./modules/repository"
 
-  # Specify the GCP region and project ID
   gcp_region  = local.region
   gcp_project = data.google_project.project.project_id
 
@@ -69,20 +79,21 @@ module "repository" {
   ]
 }
 
-# Module for managing service account
+# ------------------------------------------------------------------------------
+# Module for managing service account for GitHub Actions
+# ------------------------------------------------------------------------------
 module "service_account_gh" {
   source = "./modules/service_account"
 
   sa_id = "github-actions-deployer"
 
-  # Specify the GCP project ID
   gcp_project = data.google_project.project.project_id
 
   roles = [
-    "roles/run.admin",                # For Cloud Run deployments
-    "roles/artifactregistry.writer",  # For pushing Docker images
-    "roles/iam.serviceAccountUser",   # Allows SA to impersonate itself for Cloud Run runtime
-    "roles/cloudbuild.builds.editor", # For Cloud Build implicit build from source
+    "roles/run.admin",
+    "roles/artifactregistry.writer",
+    "roles/iam.serviceAccountUser",
+    "roles/cloudbuild.builds.editor",
   ]
 
   depends_on = [
@@ -90,12 +101,14 @@ module "service_account_gh" {
   ]
 }
 
+# ------------------------------------------------------------------------------
+# Module for managing service account for frontend
+# ------------------------------------------------------------------------------
 module "service_account_front" {
   source = "./modules/service_account"
 
   sa_id = "cloudrun-front"
 
-  # Specify the GCP project ID
   gcp_project = data.google_project.project.project_id
 
   roles = [
@@ -107,11 +120,12 @@ module "service_account_front" {
   ]
 }
 
+# ------------------------------------------------------------------------------
 # Module for configuring Workload Identity Federation
+# ------------------------------------------------------------------------------
 module "wif" {
   source = "./modules/wif"
 
-  # Specify the GCP project ID
   gcp_project        = data.google_project.project.project_id
   gcp_project_number = data.google_project.project.number
 
@@ -124,11 +138,12 @@ module "wif" {
   ]
 }
 
-# Module for deploying Cloud Run service
+# ------------------------------------------------------------------------------
+# Module for deploying Cloud Run service for agent
+# ------------------------------------------------------------------------------
 module "cloudrun_agent" {
   source = "./modules/cloudrun"
 
-  # Specify the GCP region and project ID
   gcp_region   = local.region
   gcp_project  = data.google_project.project.project_id
   image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-agent:latest"
@@ -140,11 +155,12 @@ module "cloudrun_agent" {
   ]
 }
 
-# Module for deploying Cloud Run service
+# ------------------------------------------------------------------------------
+# Module for deploying Cloud Run service for frontend
+# ------------------------------------------------------------------------------
 module "cloudrun_front" {
   source = "./modules/cloudrun"
 
-  # Specify the GCP region and project ID
   gcp_region     = local.region
   gcp_project    = data.google_project.project.project_id
   image          = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-front:latest"
@@ -155,39 +171,29 @@ module "cloudrun_front" {
 
   environment_variables = [
     {
-      # First environment variable: FIREBASE_API_KEY
       name = "NEXTAUTH_SECRET",
       secret_ref = {
-        # Assuming module.secret_manager outputs a map called 'secrets_id'
         secret_id = module.secret_manager.secrets_id["NEXTAUTH_SECRET"]
         version   = "latest"
       }
-      # Make sure 'value' is not present
     },
     {
       name = "NEXTAUTH_URL",
       secret_ref = {
-        # Assuming module.secret_manager outputs a map called 'secrets_id'
         secret_id = module.secret_manager.secrets_id["NEXTAUTH_URL"]
         version   = "latest"
       }
     },
     {
-      # First environment variable: GOOGLE_CLIENT_ID
       name = "GOOGLE_CLIENT_ID",
-      # Make sure 'value' is not present when using 'secret_ref'
       secret_ref = {
-        # Assuming module.secret_manager outputs a map called 'secrets_id'
         secret_id = module.secret_manager.secrets_id["GOOGLE_CLIENT_ID"]
         version   = "latest"
       }
-    }, # <-- Comma separating the objects
+    },
     {
-      # Second environment variable: GOOGLE_CLIENT_SECRET
       name = "GOOGLE_CLIENT_SECRET",
-      # Make sure 'value' is not present when using 'secret_ref'
       secret_ref = {
-        # Assuming module.secret_manager outputs a map called 'secrets_id'
         secret_id = module.secret_manager.secrets_id["GOOGLE_CLIENT_SECRET"]
         version   = "latest"
       }

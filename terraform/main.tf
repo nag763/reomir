@@ -204,6 +204,13 @@ module "cloudrun_front" {
         secret_id = module.secret_manager.secrets_id["GOOGLE_CLIENT_SECRET"]
         version   = "latest"
       }
+    },
+    {
+      name = "FIREBASE_SERVICE_ACCOUNT_JSON",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_SERVICE_ACCOUNT_JSON"]
+        version   = "latest"
+      }
     }
   ]
 

@@ -19,6 +19,30 @@ resource "google_firebase_web_app" "reomir_web_app" {
   depends_on = [google_firebase_project.reomir_firebase]
 }
 
+resource "google_firebaserules_ruleset" "firestore_rules" {
+  for_each = toset(var.firestore_rules)
+  project  = var.gcp_project
+  source {
+    files {
+      content = file(each.key)
+      name    = each.key
+    }
+  }
+}
+
+resource "google_firebaserules_release" "firestore_release" {
+  for_each     = google_firebaserules_ruleset.firestore_rules
+  project      = var.gcp_project
+  name         = "cloud.firestore"
+  ruleset_name = each.value.name
+
+  lifecycle {
+    replace_triggered_by = [
+      google_firebaserules_ruleset.firestore_rules[each.key].id
+    ]
+  }
+}
+
 output "firebase_app_id" {
   value = google_firebase_web_app.reomir_web_app.app_id
 }

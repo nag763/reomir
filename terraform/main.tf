@@ -14,7 +14,7 @@ terraform {
     # Configure the Google provider
     google = {
       source  = "hashicorp/google"
-      version = "~> 5.0"
+      version = "~> 6.0"
     }
     google-beta = {
       source  = "hashicorp/google-beta"
@@ -226,7 +226,8 @@ module "cloudrun_front" {
 # Module for deploying Firebase
 # ------------------------------------------------------------------------------
 module "firebase" {
-  source = "./modules/firebase"
+  source          = "./modules/firebase"
+  firestore_rules = ["firestore.rules"]
 
   gcp_project = data.google_project.project.project_id
   region      = local.region

@@ -1,0 +1,26 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // == User Profiles ==
+    // Allow users to read their own profile.
+    // Allow users to create their own profile (if their ID matches the doc ID).
+    // Allow users to update their own profile (but not change their ID if stored).
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow create only if the doc ID matches the user's UID
+      allow create: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow update only if the user is the owner.
+      // Optional: Add conditions here to prevent changing critical fields.
+      allow update: if request.auth != null && request.auth.uid == userId;
+
+      // Generally, don't allow users to delete their main profile doc,
+      // but if you need it:
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+
+  }
+}

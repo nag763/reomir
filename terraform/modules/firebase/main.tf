@@ -14,7 +14,7 @@ resource "google_firestore_database" "database" {
 resource "google_firebase_web_app" "reomir_web_app" {
   provider     = google-beta
   project      = var.gcp_project
-  display_name = "Reomir Web App"
+  display_name = "reomir Web App"
 
   depends_on = [google_firebase_project.reomir_firebase]
 }
@@ -41,6 +41,11 @@ resource "google_firebaserules_release" "firestore_release" {
       google_firebaserules_ruleset.firestore_rules[each.key].id
     ]
   }
+}
+
+resource "google_identity_platform_config" "default_config" {
+  project = var.gcp_project
+
 }
 
 output "firebase_app_id" {

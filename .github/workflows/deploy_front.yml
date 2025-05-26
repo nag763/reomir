@@ -9,10 +9,10 @@ on:
 
 env:
   # --- GCP Cloud Run Variables ---
-  GCP_PROJECT_ID: reomir # Your GCP project ID
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }} # Your GCP project ID
   GCP_REGION: europe-west1 # Cloud Run region
-  GAR_REPOSITORY_ID: reomir # Artifact Registry repo ID
-  CLOUD_RUN_SERVICE_NAME: reomir-front # Cloud Run service name
+  GAR_REPOSITORY_ID:  ${{ vars.GCP_PROJECT_NAME }} # Artifact Registry repo ID
+  CLOUD_RUN_SERVICE_NAME:  ${{ vars.GCP_PROJECT_NAME }}-front # Cloud Run service name
   FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
 
 jobs:

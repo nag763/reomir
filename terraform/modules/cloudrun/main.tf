@@ -58,6 +58,8 @@ resource "google_cloud_run_v2_service" "default" {
     percent = 100
   }
 
+  deletion_protection = false
+
   # Ignore some values
   lifecycle {
     ignore_changes = [

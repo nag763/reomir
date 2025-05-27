@@ -43,14 +43,19 @@ export default function ConsentPopup() {
           const userDocRef = doc(db, 'users', user.uid);
           const userDocSnap = await getDoc(userDocRef);
 
-          if (userDocSnap.exists() && userDocSnap.data().cookieConsentGiven === true) {
+          if (
+            userDocSnap.exists() &&
+            userDocSnap.data().cookieConsentGiven === true
+          ) {
             setIsOpen(false); // User has already consented
           } else {
             setIsOpen(true); // Show popup if no doc or no/false consent
           }
         } catch (err) {
-          console.error("Error fetching user consent status:", err);
-          setError("Could not verify your consent status. Please try again or contact support.");
+          console.error('Error fetching user consent status:', err);
+          setError(
+            'Could not verify your consent status. Please try again or contact support.',
+          );
           setIsOpen(true); // Fallback to showing popup on error to ensure consent is eventually captured
         } finally {
           setIsCheckingConsent(false);
@@ -169,7 +174,8 @@ export default function ConsentPopup() {
     }
   };
 
-  if (!isOpen || isCheckingConsent) { // Don't render if not open or still checking consent
+  if (!isOpen || isCheckingConsent) {
+    // Don't render if not open or still checking consent
     return null;
   }
 
@@ -216,8 +222,8 @@ export default function ConsentPopup() {
               htmlFor="createOrg"
               className="text-sm font-normal text-gray-300"
             >
-              I'd like to create a new organization to manage projects and team
-              members.
+              I&apos;d like to create a new organization to manage projects and
+              team members.
             </Label>
           </div>
 

@@ -118,19 +118,4 @@ To achieve this :
   *   **Web client ID**: Use the Client ID obtained in step 2 when configuring the OAuth client.
   *   **Web client secret**: Use the Client Secret obtained in step 2 when configuring the OAuth client.
 8.  Save the configuration.
-
-## 7 - Access the application
-
-Once the Terraform configuration is successfully applied and the Cloud Run services are deployed, you can access the application through the URL provided by Cloud Run.
-
-To get the URL:
-
-```shell
-terraform output cloudrun_front_url
-```
-
-Open the URL in your browser to access the application.
-
-## Contributing
-
-Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute.
+9. Don't forget to allow the domain in Firebase Auth config

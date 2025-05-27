@@ -192,7 +192,6 @@ export default function SettingsPage() {
           {isEditingProfile ? (
             <>
               <Button
-                variant="outline"
                 variant="indigo-ghost"
                 onClick={() => {
                   setIsEditingProfile(false);

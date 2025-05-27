@@ -78,7 +78,8 @@ const FeaturesSection = () => {
           Discover the Power of <span className="text-indigo-400">Reomir</span>
         </h2>
         <p className="text-gray-400 max-w-2xl mx-auto">
-          Reomir is designed to streamline your development workflow, enhance security, and centralize your project information.
+          Reomir is designed to streamline your development workflow, enhance
+          security, and centralize your project information.
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 md:gap-8">

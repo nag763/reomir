@@ -130,7 +130,6 @@ export default function SettingsPage() {
     }
   };
 
-  
   return (
     <div className="space-y-8 p-4 md:p-0">
       <h1 className="text-3xl font-bold mb-6 flex items-center">

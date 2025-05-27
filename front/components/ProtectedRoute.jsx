@@ -12,7 +12,7 @@ const ProtectedRoute = ({ children }) => {
   useEffect(() => {
     // If auth state is determined (not loading) and there's no user, redirect.
     if (!loading && !user) {
-      router.push('/'); // Redirect to homepage 
+      router.push('/'); // Redirect to homepage
     }
   }, [user, loading, router]);
 

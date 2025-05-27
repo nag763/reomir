@@ -95,12 +95,42 @@ gcloud auth configure-docker
 And while staying in the same dir, use the following to build and push
 
 ```shell
-docker build -t $(terraform output -raw cloudrun_agent_image) ../agent &
-& docker push $(terraform output -raw cloudrun_agent_image)
+docker build -t $(terraform output -raw cloudrun_agent_image) ../agent && docker push $(terraform output -raw cloudrun_agent_image)
 
-docker build -t $(terraform output -raw cloudrun_front_image) ../front &
-& docker push $(terraform output -raw cloudrun_front_image)
+docker build -t $(terraform output -raw cloudrun_front_image) ../front && docker push $(terraform output -raw cloudrun_front_image)
 ```
 
 After pushing the images, re-run `terraform apply` to deploy the Cloud Run services.
 
+## 6 Firebase authentication
+
+Firebase Authentication coupled with Google OIDC is not something that can be done through terraform.
+
+To achieve this :
+
+1.  Go to the [Firebase Console](https://console.firebase.google.com/).
+2.  Select your project.
+3.  In the left navigation panel, click "Authentication".
+4.  Click the "Get started" button if you haven't already enabled Authentication.
+5.  Go to the "Sign-in method" tab.
+6.  Enable the "Google" sign-in provider.
+7.  Configure the "Web SDK configuration":
+  *   **Web client ID**: Use the Client ID obtained in step 2 when configuring the OAuth client.
+  *   **Web client secret**: Use the Client Secret obtained in step 2 when configuring the OAuth client.
+8.  Save the configuration.
+
+## 7 - Access the application
+
+Once the Terraform configuration is successfully applied and the Cloud Run services are deployed, you can access the application through the URL provided by Cloud Run.
+
+To get the URL:
+
+```shell
+terraform output cloudrun_front_url
+```
+
+Open the URL in your browser to access the application.
+
+## Contributing
+
+Contributions are welcome! Please read the [CONTRIBUTING.md](CONTRIBUTING.md) file for guidelines on how to contribute.

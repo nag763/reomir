@@ -43,11 +43,6 @@ resource "google_firebaserules_release" "firestore_release" {
   }
 }
 
-resource "google_identity_platform_config" "default_config" {
-  project = var.gcp_project
-
-}
-
 output "firebase_app_id" {
   value = google_firebase_web_app.reomir_web_app.app_id
 }

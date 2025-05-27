@@ -25,42 +25,39 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { User, Trash2, AlertTriangle } from 'lucide-react';
-import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
 
-// Placeholder function for delete action - replace with your actual API call
-const handleDeleteAccount = () => {
-  signOut({
-    callbackUrl: '/',
-  });
-};
+import { auth, signOut } from '@/lib/firebase';
+import { useAuth } from '@/components/AuthProvider';
 
 export default function SettingsPage() {
   const [confirmInput, setConfirmInput] = useState('');
   const isConfirmDisabled = confirmInput !== 'delete me';
 
-  const { data: session, status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (status === 'loading') return;
-    if (!session) router.push('/');
-  }, [session, status, router]);
+  const { user, loading } = useAuth();
 
-  if (status === 'loading') {
+  // Placeholder function for delete action - replace with your actual API call
+  const handleDeleteAccount = async () => {
+    await signOut(auth);
+    router.push('/'); // Redirect to sign-in
+    return;
+  };
+
+  useEffect(() => {
+    // If not loading and no user, redirect to signin
+    if (!loading && !user) {
+      router.push('/');
+      return;
+    }
+  }, [user, loading, router]);
+
+  // Show loading screen while checking auth or if redirect ing
+  if (loading || !user) {
     return <LoadingScreen />;
   }
-
-  if (!session) {
-    return <div>Access Denied</div>;
-  }
-
-  const user = {
-    name: session.user?.name || 'User',
-    email: session.user?.email || '',
-    image: session.user?.image || null,
-  };
 
   return (
     <div className="space-y-8 p-4 md:p-0">
@@ -74,7 +71,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
             <Avatar className="h-10 w-10 mr-4 border-2 border-gray-600">
-              <AvatarImage src={user.image} />
+              <AvatarImage src={user.providerData[0]?.photoURL} />
             </Avatar>
             Profile Details
           </CardTitle>
@@ -85,7 +82,7 @@ export default function SettingsPage() {
         <CardContent className="space-y-4 font-mono">
           <div>
             <Label className="text-gray-500">Name:</Label>
-            <p className="text-lg">{user.name}</p>
+            <p className="text-lg">{user.displayName}</p>
           </div>
           <div>
             <Label className="text-gray-500">Email:</Label>

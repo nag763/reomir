@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # Stage 1: Build the Next.js application
 FROM node:23-alpine AS builder
 
@@ -18,15 +16,7 @@ COPY . .
 COPY next.config.mjs ./
 
 # Build the Next.js application for standalone output
-RUN --mount=type=secret,id=firebase_key \
-    echo "Firebase key mounted, running build..." && \
-    # Export the secret content as an env var ONLY for this RUN command
-    export FIREBASE_SERVICE_ACCOUNT_JSON=$(cat /run/secrets/firebase_key) && \
-    # Verify it's set (optional but good for debug)
-    if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then \
-        echo "Error: FIREBASE_SERVICE_ACCOUNT_JSON could not be read from secret." && exit 1; \
-    fi && \
-    npm run build
+RUN npm run build
 
 # Stage 2: Create the production image
 FROM node:23-alpine

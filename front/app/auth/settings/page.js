@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react'; // Added LogOut
 import { useRouter } from 'next/navigation';
+
 import { updateProfile, deleteUser } from 'firebase/auth'; // Import Firebase auth functions
 import { auth, signOut } from '@/lib/firebase'; // Added signOut, assuming it's exported from @/lib/firebase
 import { useAuth } from '@/components/AuthProvider';

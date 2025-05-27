@@ -4,7 +4,6 @@ import React, { useRef, useEffect } from 'react'; // Import useRef and update us
 import TopBar from '@/components/TopBar';
 import CommandBar from '@/components/CommandBar';
 import { useRouter } from 'next/navigation';
-import LoadingScreen from '@/components/LoadingScreen';
 import { useAuth } from '@/components/AuthProvider';
 // Assuming Sidebar is needed for layout (even if not shown in your code snippet)
 // import Sidebar from '@/components/Sidebar';
@@ -36,24 +35,6 @@ export default function Dashboard() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []); // Empty dependency array means this runs once on mount and cleans up on unmount
-
-  useEffect(() => {
-    // If not loading and no user, redirect to signin
-    if (!loading && !user) {
-      router.push('/');
-      return;
-    }
-  }, [user, loading, router]);
-
-  // Show loading screen while checking auth or if redirecting
-  if (loading || !user) {
-    return <LoadingScreen />;
-  }
-
-  if (!user) {
-    // You might want a better 'Access Denied' or redirect handling
-    return <LoadingScreen />; // Show loader while redirecting
-  }
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-mono flex">

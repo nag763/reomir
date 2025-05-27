@@ -24,27 +24,113 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { User, Trash2, AlertTriangle } from 'lucide-react';
+import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react'; // Added LogOut
 import { useRouter } from 'next/navigation';
 
-import { auth, signOut } from '@/lib/firebase';
+import { updateProfile, deleteUser } from 'firebase/auth'; // Import Firebase auth functions
+import { auth, signOut } from '@/lib/firebase'; // Added signOut, assuming it's exported from @/lib/firebase
 import { useAuth } from '@/components/AuthProvider';
+import LoadingScreen from '@/components/LoadingScreen'; // For initial loading
 
 export default function SettingsPage() {
   const [confirmInput, setConfirmInput] = useState('');
   const isConfirmDisabled = confirmInput !== 'delete me';
 
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
 
-  const { user, loading } = useAuth();
+  // States for profile editing
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [newDisplayName, setNewDisplayName] = useState('');
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
-  // Placeholder function for delete action - replace with your actual API call
+  // State for feedback messages (e.g., success/error)
+  const [feedback, setFeedback] = useState({ message: '', type: '' }); // type: 'success' or 'error'
+
+  // State for account deletion
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+
+  // State for sign out
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setNewDisplayName(user.displayName || '');
+    }
+  }, [user]);
+
   const handleDeleteAccount = async () => {
-    await signOut(auth);
-    router.push('/'); // Redirect to sign-in
-    return;
+    setIsDeletingAccount(true);
+    setFeedback({ message: '', type: '' });
+    try {
+      if (auth.currentUser) {
+        await deleteUser(auth.currentUser);
+        router.push('/'); // Redirect to home/login after deletion
+      }
+    } catch (error) {
+      if (error.code === 'auth/requires-recent-login') {
+        setFeedback({
+          message:
+            'This action requires a recent login. Please sign out and sign back in to delete your account.',
+          type: 'error',
+        });
+      } else {
+        setFeedback({
+          message: `Error deleting account: ${error.message}`,
+          type: 'error',
+        });
+      }
+      setConfirmInput(''); // Clear input on error
+    } finally {
+      setIsDeletingAccount(false);
+    }
   };
 
+  const handleProfileUpdate = async () => {
+    if (!user || newDisplayName === user.displayName) {
+      setIsEditingProfile(false);
+      setFeedback({ message: 'No changes to save.', type: 'info' });
+      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
+      return;
+    }
+    setIsUpdatingProfile(true);
+    setFeedback({ message: '', type: '' });
+    try {
+      await updateProfile(auth.currentUser, { displayName: newDisplayName });
+      setFeedback({
+        message: 'Profile updated successfully!',
+        type: 'success',
+      });
+      setIsEditingProfile(false);
+      // user object from useAuth will update via onAuthStateChanged
+    } catch (error) {
+      setFeedback({
+        message: `Error updating profile: ${error.message}`,
+        type: 'error',
+      });
+    } finally {
+      setIsUpdatingProfile(false);
+      setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsSigningOut(true);
+    setFeedback({ message: '', type: '' }); // Clear previous feedback
+    try {
+      await signOut(auth);
+      router.push('/'); // Redirect to home after sign out
+    } catch (error) {
+      console.error('Error signing out: ', error);
+      setFeedback({
+        message: `Failed to sign out. Please try again. (${error.message})`,
+        type: 'error',
+      });
+      setIsSigningOut(false); // Only set to false on error
+    }
+  };
+
+  
   return (
     <div className="space-y-8 p-4 md:p-0">
       <h1 className="text-3xl font-bold mb-6 flex items-center">
@@ -52,34 +138,116 @@ export default function SettingsPage() {
         User Settings
       </h1>
 
+      {/* Feedback Message Display */}
+      {feedback.message && (
+        <div
+          className={`p-4 mb-4 rounded-md text-sm ${
+            feedback.type === 'error'
+              ? 'bg-red-900/30 text-red-300 border border-red-700'
+              : feedback.type === 'success'
+                ? 'bg-green-900/30 text-green-300 border border-green-700'
+                : 'bg-blue-900/30 text-blue-300 border border-blue-700'
+          }`}
+        >
+          {feedback.message}
+        </div>
+      )}
+
       {/* User Profile Card */}
       <Card className="bg-gray-800 border-gray-700 text-gray-100">
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
             <Avatar className="h-10 w-10 mr-4 border-2 border-gray-600">
-              <AvatarImage src={user.providerData[0]?.photoURL} />
+              <AvatarImage src={user?.providerData[0]?.photoURL} />
+              <AvatarFallback>
+                {user?.displayName?.charAt(0) || 'U'}
+              </AvatarFallback>
             </Avatar>
             Profile Details
           </CardTitle>
           <CardDescription className="text-gray-400">
-            Your personal information within Reomir.
+            Manage your personal information.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 font-mono">
           <div>
             <Label className="text-gray-500">Name:</Label>
-            <p className="text-lg">{user.displayName}</p>
+            {isEditingProfile ? (
+              <Input
+                className="mt-1 bg-gray-700 border-gray-600 text-lg"
+                value={newDisplayName}
+                onChange={(e) => setNewDisplayName(e.target.value)}
+                disabled={isUpdatingProfile}
+              />
+            ) : (
+              <p className="text-lg">{user?.displayName || 'N/A'}</p>
+            )}
           </div>
           <div>
             <Label className="text-gray-500">Email:</Label>
-            <p className="text-lg">{user.email}</p>
+            <p className="text-lg">{user?.email || 'N/A'}</p>
           </div>
         </CardContent>
-        {/* <CardFooter>
-                    <Button variant="outline" className="border-indigo-500 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300">
-                        Edit Profile (Not Implemented)
-                    </Button>
-                </CardFooter> */}
+        <CardFooter className="flex justify-end space-x-2">
+          {isEditingProfile ? (
+            <>
+              <Button
+                variant="outline"
+                className="text-indigo-400"
+                onClick={() => {
+                  setIsEditingProfile(false);
+                  setNewDisplayName(user?.displayName || '');
+                }}
+                disabled={isUpdatingProfile}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProfileUpdate}
+                disabled={
+                  isUpdatingProfile || newDisplayName === user?.displayName
+                }
+              >
+                {isUpdatingProfile ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="outline"
+              className="border-indigo-500 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300"
+              onClick={() => setIsEditingProfile(true)}
+            >
+              Edit Profile
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+
+      {/* Sign Out Section */}
+      <Card className="bg-gray-800 border-gray-700 text-gray-100">
+        <CardHeader>
+          <CardTitle className="text-xl">Sign Out</CardTitle>
+          <CardDescription className="text-gray-400">
+            End your current session and return to the homepage.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter className="flex justify-end">
+          <Button
+            variant="outline"
+            onClick={handleSignOut}
+            disabled={isSigningOut}
+            className="w-full sm:w-auto" // Responsive width
+          >
+            {isSigningOut ? (
+              'Signing Out...'
+            ) : (
+              <>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </>
+            )}
+          </Button>
+        </CardFooter>
       </Card>
 
       {/* Danger Zone Card */}
@@ -102,10 +270,10 @@ export default function SettingsPage() {
             </p>
           </div>
         </CardContent>
-        <CardFooter>
+        <CardFooter className="flex justify-end">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive">
+              <Button variant="destructive" disabled={isDeletingAccount}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete My Account
               </Button>
@@ -153,15 +321,15 @@ export default function SettingsPage() {
                 </AlertDialogCancel>
                 <AlertDialogAction
                   className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
-                  disabled={isConfirmDisabled} // Disable if input doesn't match
+                  disabled={isConfirmDisabled || isDeletingAccount}
                   onClick={() => {
                     if (!isConfirmDisabled) {
                       handleDeleteAccount();
-                      setConfirmInput(''); // Clear input after action
+                      // confirmInput will be cleared on error by handleDeleteAccount
                     }
                   }}
                 >
-                  Yes, Obliterate It!
+                  {isDeletingAccount ? 'Deleting...' : 'Yes, Obliterate It!'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

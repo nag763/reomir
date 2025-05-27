@@ -132,6 +132,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 p-4 md:p-0">
+      <title>Settings</title>
       <h1 className="text-3xl font-bold mb-6 flex items-center">
         <User className="mr-3 h-8 w-8 text-indigo-400" />
         User Settings

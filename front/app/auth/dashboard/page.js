@@ -38,6 +38,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-mono flex">
+      <title>Dashboard</title>
       {/* <Sidebar />  You likely need your Sidebar here */}
       {/* Main Content Area - Adjusts for sidebar width */}
       <div className="flex-1 ml-16 flex flex-col h-screen">

@@ -26,7 +26,6 @@ import {
 } from '@/components/ui/alert-dialog';
 import { User, Trash2, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import LoadingScreen from '@/components/LoadingScreen';
 
 import { auth, signOut } from '@/lib/firebase';
 import { useAuth } from '@/components/AuthProvider';
@@ -45,19 +44,6 @@ export default function SettingsPage() {
     router.push('/'); // Redirect to sign-in
     return;
   };
-
-  useEffect(() => {
-    // If not loading and no user, redirect to signin
-    if (!loading && !user) {
-      router.push('/');
-      return;
-    }
-  }, [user, loading, router]);
-
-  // Show loading screen while checking auth or if redirect ing
-  if (loading || !user) {
-    return <LoadingScreen />;
-  }
 
   return (
     <div className="space-y-8 p-4 md:p-0">

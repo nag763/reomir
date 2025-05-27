@@ -255,19 +255,18 @@ export default function ConsentPopup() {
           <Button
             variant="outline"
             onClick={handleExitAndDeleteProfile}
-            className="text-gray-300 border-gray-600 hover:bg-gray-700 hover:text-white"
             disabled={isLoading}
           >
             Exit & Delete Profile
           </Button>
           <Button
+            variant="default" // Uses the primary indigo button style
             onClick={handleSubmit}
             disabled={
               isLoading ||
               !cookieConsent ||
               (wantsToCreateOrg && organizationName.trim() === '')
             }
-            className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:bg-gray-600"
           >
             {isLoading ? 'Saving...' : 'Save & Continue'}
           </Button>

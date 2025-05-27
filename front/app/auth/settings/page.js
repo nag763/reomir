@@ -132,6 +132,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 p-4 md:p-0">
+      <title>Settings</title>
       <h1 className="text-3xl font-bold mb-6 flex items-center">
         <User className="mr-3 h-8 w-8 text-indigo-400" />
         User Settings
@@ -191,8 +192,7 @@ export default function SettingsPage() {
           {isEditingProfile ? (
             <>
               <Button
-                variant="outline"
-                className="text-indigo-400"
+                variant="indigo-ghost"
                 onClick={() => {
                   setIsEditingProfile(false);
                   setNewDisplayName(user?.displayName || '');
@@ -201,6 +201,7 @@ export default function SettingsPage() {
               >
                 Cancel
               </Button>
+              {/* Default variant will be used here, which is our indigo primary button */}
               <Button
                 onClick={handleProfileUpdate}
                 disabled={
@@ -212,8 +213,7 @@ export default function SettingsPage() {
             </>
           ) : (
             <Button
-              variant="outline"
-              className="border-indigo-500 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300"
+              variant="indigo-outline"
               onClick={() => setIsEditingProfile(true)}
             >
               Edit Profile
@@ -232,7 +232,7 @@ export default function SettingsPage() {
         </CardHeader>
         <CardFooter className="flex justify-end">
           <Button
-            variant="outline"
+            variant="outline" // Uses the gray outline variant
             onClick={handleSignOut}
             disabled={isSigningOut}
             className="w-full sm:w-auto" // Responsive width
@@ -313,13 +313,13 @@ export default function SettingsPage() {
               </div>
               <AlertDialogFooter className="sm:justify-between">
                 <AlertDialogCancel
-                  className="border-gray-600 bg-gray-600 hover:bg-gray-700"
+                  variant="secondary" // Uses the new secondary variant
                   onClick={() => setConfirmInput('')} // Clear input on cancel
                 >
                   Phew, Cancel!
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-50"
+                  variant="destructive" // Uses the destructive variant
                   disabled={isConfirmDisabled || isDeletingAccount}
                   onClick={() => {
                     if (!isConfirmDisabled) {

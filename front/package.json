@@ -16,7 +16,6 @@
     "style:fix": "npm run lint:fix && npm run format && npm run stylelint:fix"
   },
   "dependencies": {
-    "@auth/firebase-adapter": "^2.9.1",
     "@emotion/react": "^11.14.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -29,9 +28,9 @@
     "firebase": "^11.8.1",
     "lucide-react": "^0.511.0",
     "next": "15.1.8",
-    "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-firebase-hooks": "^5.1.1",
     "tailwind-merge": "^3.3.0",
     "tailwindcss-animate": "^1.0.7"
   },

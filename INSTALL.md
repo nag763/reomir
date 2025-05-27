@@ -76,34 +76,46 @@ With the packages installed, apply the Terraform configuration to your GCP proje
 terraform apply
 ```
 
-The Cloud Run deployment might initially fail because the required container images haven't been built and pushed yet.
+The apply will fail a first time as service API will not be activated. Follow the terraform recommendation to enable it and go on. 
+
+The Cloud Run deployment might initially fail because the required container images haven't been built and pushed yet. 
 
 It's recommended to apply the configuration initially to create the Artifact Registry repository. After the initial failure, proceed as follows:
+
+First change project to newly created project, while staying on the terraform directory
+
+```
+gcloud config set project $(terraform output -raw project_id)
+```
 
 ```shell
 gcloud auth configure-docker
 ```
 
-This configures Docker to authenticate with your Google Cloud project. Next, build the container images locally:
+And while staying in the same dir, use the following to build and push
 
 ```shell
-# Build the frontend project
-docker build -t europe-west1-docker.pkg.dev/reomir/reomir/reomir-front ./front
+docker build -t $(terraform output -raw cloudrun_agent_image) ../agent && docker push $(terraform output -raw cloudrun_agent_image)
 
-# Build the agent project
-docker build -t europe-west1-docker.pkg.dev/reomir/reomir/reomir-agent ./agent
+docker build -t $(terraform output -raw cloudrun_front_image) ../front && docker push $(terraform output -raw cloudrun_front_image)
 ```
-
-Then, push the images to Artifact Registry:
-
-```shell
-docker push europe-west1-docker.pkg.dev/reomir/reomir/reomir-front
-docker push europe-west1-docker.pkg.dev/reomir/reomir/reomir-agent
-```
-
-:warning: Your project name and ID might differ if the name is already taken.
-
-The image naming convention is: `${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT_NAME}/${GCP_PROJECT_ID}/${IMAGE_NAME}`
 
 After pushing the images, re-run `terraform apply` to deploy the Cloud Run services.
 
+## 6 Firebase authentication
+
+Firebase Authentication coupled with Google OIDC is not something that can be done through terraform.
+
+To achieve this :
+
+1.  Go to the [Firebase Console](https://console.firebase.google.com/).
+2.  Select your project.
+3.  In the left navigation panel, click "Authentication".
+4.  Click the "Get started" button if you haven't already enabled Authentication.
+5.  Go to the "Sign-in method" tab.
+6.  Enable the "Google" sign-in provider.
+7.  Configure the "Web SDK configuration":
+  *   **Web client ID**: Use the Client ID obtained in step 2 when configuring the OAuth client.
+  *   **Web client secret**: Use the Client Secret obtained in step 2 when configuring the OAuth client.
+8.  Save the configuration.
+9. Don't forget to allow the domain in Firebase Auth config

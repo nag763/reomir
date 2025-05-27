@@ -2,10 +2,8 @@
 # Define local variables
 # ------------------------------------------------------------------------------
 locals {
-  region       = "europe-west1"
-  project_name = "reomir"
+  region = "europe-west1"
 }
-
 # ------------------------------------------------------------------------------
 # Configure Terraform settings
 # ------------------------------------------------------------------------------
@@ -23,22 +21,57 @@ terraform {
   }
 }
 
+# Generate a random integer
+resource "random_integer" "project_id" {
+  min = 1
+  max = 10000
+  keepers = {
+    # Generate a new integer each time the project name changes
+    name = "reomir"
+  }
+}
+
+
 # ------------------------------------------------------------------------------
 # Configure the Google Cloud provider
 # ------------------------------------------------------------------------------
 provider "google" {
-  # Specify the Google Cloud project ID
-  project = local.project_name
   # Specify the Google Cloud region
-  region = "europe-west1"
+  region                = "europe-west1"
+  user_project_override = true
 }
 
 # ------------------------------------------------------------------------------
 # Retrieve project information
 # ------------------------------------------------------------------------------
-data "google_project" "project" {
-  # Retrieve information about the Google Cloud project
-  project_id = local.project_name
+resource "google_project" "reomir" {
+  name       = "reomir"
+  project_id = "reomir-${random_integer.project_id.result}"
+
+  billing_account = var.billing_account
+  deletion_policy = "DELETE"
+}
+
+module "service_usage_api" {
+  source     = "./modules/api"
+  project_id = google_project.reomir.project_id
+  apis = [
+    "serviceusage.googleapis.com"
+  ]
+
+  depends_on = [google_project.reomir]
+}
+
+module "prioritized_api" {
+  source = "./modules/api"
+
+  project_id = google_project.reomir.project_id
+  apis = [
+    "appengine.googleapis.com",
+    "cloudresourcemanager.googleapis.com"
+  ]
+
+  depends_on = [module.service_usage_api]
 }
 
 # ------------------------------------------------------------------------------
@@ -46,7 +79,7 @@ data "google_project" "project" {
 # ------------------------------------------------------------------------------
 module "api" {
   source     = "./modules/api"
-  project_id = data.google_project.project.project_id
+  project_id = google_project.reomir.project_id
   apis = [
     "aiplatform.googleapis.com",
     "artifactregistry.googleapis.com",
@@ -58,16 +91,17 @@ module "api" {
     "secretmanager.googleapis.com",
     "firebase.googleapis.com",
     "firestore.googleapis.com",
-    "appengine.googleapis.com"
   ]
+  depends_on = [module.prioritized_api]
 }
 
 # ------------------------------------------------------------------------------
 # Module for managing secrets
 # ------------------------------------------------------------------------------
 module "secret_manager" {
-  source  = "./modules/secret_manager"
-  secrets = var.secrets
+  source      = "./modules/secret_manager"
+  secrets     = var.secrets
+  gcp_project = google_project.reomir.project_id
 
   depends_on = [module.api]
 }
@@ -79,7 +113,7 @@ module "repository" {
   source = "./modules/repository"
 
   gcp_region  = local.region
-  gcp_project = data.google_project.project.project_id
+  gcp_project = google_project.reomir.project_id
 
   depends_on = [
     module.api
@@ -94,7 +128,7 @@ module "service_account_gh" {
 
   sa_id = "github-actions-deployer"
 
-  gcp_project = data.google_project.project.project_id
+  gcp_project = google_project.reomir.project_id
 
   roles = [
     "roles/run.admin",
@@ -116,7 +150,7 @@ module "service_account_front" {
 
   sa_id = "cloudrun-front"
 
-  gcp_project = data.google_project.project.project_id
+  gcp_project = google_project.reomir.project_id
 
   roles = [
     "roles/secretmanager.secretAccessor"
@@ -133,8 +167,8 @@ module "service_account_front" {
 module "wif" {
   source = "./modules/wif"
 
-  gcp_project        = data.google_project.project.project_id
-  gcp_project_number = data.google_project.project.number
+  gcp_project        = google_project.reomir.project_id
+  gcp_project_number = google_project.reomir.number
 
   pool_name          = "gh-actions-pool"
   issuer_uri         = "https://token.actions.githubusercontent.com"
@@ -152,8 +186,8 @@ module "cloudrun_agent" {
   source = "./modules/cloudrun"
 
   gcp_region   = local.region
-  gcp_project  = data.google_project.project.project_id
-  image        = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-agent:latest"
+  gcp_project  = google_project.reomir.project_id
+  image        = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-agent:latest"
   service_name = "reomir-agent"
 
   depends_on = [
@@ -169,8 +203,8 @@ module "cloudrun_front" {
   source = "./modules/cloudrun"
 
   gcp_region     = local.region
-  gcp_project    = data.google_project.project.project_id
-  image          = "${local.region}-docker.pkg.dev/${local.project_name}/${local.project_name}/reomir-front:latest"
+  gcp_project    = google_project.reomir.project_id
+  image          = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-front:latest"
   service_name   = "reomir-front"
   open_to_public = true
 
@@ -206,19 +240,55 @@ module "cloudrun_front" {
       }
     },
     {
-      name = "FIREBASE_SERVICE_ACCOUNT_JSON",
+      name = "FIREBASE_API_KEY",
       secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_SERVICE_ACCOUNT_JSON"]
+        secret_id = module.secret_manager.secrets_id["FIREBASE_API_KEY"]
         version   = "latest"
       }
-    }
+    },
+    {
+      name = "FIREBASE_AUTH_DOMAIN",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_AUTH_DOMAIN"]
+        version   = "latest"
+      }
+    },
+    {
+      name = "FIREBASE_PROJECT_ID",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_PROJECT_ID"]
+        version   = "latest"
+      }
+    },
+    {
+      name = "FIREBASE_STORAGE_BUCKET",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_STORAGE_BUCKET"]
+        version   = "latest"
+      }
+    },
+    {
+      name = "FIREBASE_MESSAGING_SENDER_ID",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_MESSAGING_SENDER_ID"]
+        version   = "latest"
+      }
+    },
+    {
+      name = "FIREBASE_APP_ID",
+      secret_ref = {
+        secret_id = module.secret_manager.secrets_id["FIREBASE_APP_ID"]
+        version   = "latest"
+      }
+    },
   ]
 
   container_port = 3000
 
   depends_on = [
     module.api,
-    module.secret_manager
+    module.secret_manager,
+    module.service_account_front
   ]
 }
 
@@ -229,11 +299,33 @@ module "firebase" {
   source          = "./modules/firebase"
   firestore_rules = ["firestore.rules"]
 
-  gcp_project = data.google_project.project.project_id
+  gcp_project = google_project.reomir.project_id
   region      = local.region
 
   depends_on = [
     module.api,
     module.secret_manager
   ]
+}
+
+
+output "project_name" {
+  value = google_project.reomir.name
+}
+
+output "project_id" {
+  value = google_project.reomir.project_id
+}
+
+output "project_number" {
+  value = google_project.reomir.number
+
+}
+
+output "cloudrun_front_image" {
+  value = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-front:latest"
+}
+
+output "cloudrun_agent_image" {
+  value = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-agent:latest"
 }

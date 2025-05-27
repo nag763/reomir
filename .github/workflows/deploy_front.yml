@@ -3,7 +3,9 @@ name: Deploy Cloud Run Front Service
 on:
   push:
     branches:
-      - check-gh-front-deploy
+      - master
+    paths:
+      - 'front/**' # Only trigger on changes in the front directory
 
 env:
   # --- GCP Cloud Run Variables ---

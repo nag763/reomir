@@ -74,7 +74,10 @@ export default function SettingsPage() {
           type: 'error',
         });
       } else {
-        setFeedback({ message: `Error deleting account: ${error.message}`, type: 'error' });
+        setFeedback({
+          message: `Error deleting account: ${error.message}`,
+          type: 'error',
+        });
       }
       setConfirmInput(''); // Clear input on error
     } finally {
@@ -85,7 +88,7 @@ export default function SettingsPage() {
   const handleProfileUpdate = async () => {
     if (!user || newDisplayName === user.displayName) {
       setIsEditingProfile(false);
-      setFeedback({ message: 'No changes to save.', type: 'info'});
+      setFeedback({ message: 'No changes to save.', type: 'info' });
       setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
       return;
     }
@@ -93,11 +96,17 @@ export default function SettingsPage() {
     setFeedback({ message: '', type: '' });
     try {
       await updateProfile(auth.currentUser, { displayName: newDisplayName });
-      setFeedback({ message: 'Profile updated successfully!', type: 'success' });
+      setFeedback({
+        message: 'Profile updated successfully!',
+        type: 'success',
+      });
       setIsEditingProfile(false);
       // user object from useAuth will update via onAuthStateChanged
     } catch (error) {
-      setFeedback({ message: `Error updating profile: ${error.message}`, type: 'error' });
+      setFeedback({
+        message: `Error updating profile: ${error.message}`,
+        type: 'error',
+      });
     } finally {
       setIsUpdatingProfile(false);
       setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
@@ -111,7 +120,7 @@ export default function SettingsPage() {
       await signOut(auth);
       router.push('/'); // Redirect to home after sign out
     } catch (error) {
-      console.error("Error signing out: ", error);
+      console.error('Error signing out: ', error);
       setFeedback({
         message: `Failed to sign out. Please try again. (${error.message})`,
         type: 'error',
@@ -134,8 +143,8 @@ export default function SettingsPage() {
             feedback.type === 'error'
               ? 'bg-red-900/30 text-red-300 border border-red-700'
               : feedback.type === 'success'
-              ? 'bg-green-900/30 text-green-300 border border-green-700'
-              : 'bg-blue-900/30 text-blue-300 border border-blue-700'
+                ? 'bg-green-900/30 text-green-300 border border-green-700'
+                : 'bg-blue-900/30 text-blue-300 border border-blue-700'
           }`}
         >
           {feedback.message}
@@ -148,7 +157,9 @@ export default function SettingsPage() {
           <CardTitle className="text-xl flex items-center">
             <Avatar className="h-10 w-10 mr-4 border-2 border-gray-600">
               <AvatarImage src={user?.providerData[0]?.photoURL} />
-              <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+              <AvatarFallback>
+                {user?.displayName?.charAt(0) || 'U'}
+              </AvatarFallback>
             </Avatar>
             Profile Details
           </CardTitle>
@@ -178,15 +189,32 @@ export default function SettingsPage() {
         <CardFooter className="flex justify-end space-x-2">
           {isEditingProfile ? (
             <>
-              <Button variant="outline" className="text-indigo-400" onClick={() => { setIsEditingProfile(false); setNewDisplayName(user?.displayName || ''); }} disabled={isUpdatingProfile}>
+              <Button
+                variant="outline"
+                className="text-indigo-400"
+                onClick={() => {
+                  setIsEditingProfile(false);
+                  setNewDisplayName(user?.displayName || '');
+                }}
+                disabled={isUpdatingProfile}
+              >
                 Cancel
               </Button>
-              <Button onClick={handleProfileUpdate} disabled={isUpdatingProfile || newDisplayName === user?.displayName}>
+              <Button
+                onClick={handleProfileUpdate}
+                disabled={
+                  isUpdatingProfile || newDisplayName === user?.displayName
+                }
+              >
                 {isUpdatingProfile ? 'Saving...' : 'Save Changes'}
               </Button>
             </>
           ) : (
-            <Button variant="outline" className="border-indigo-500 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300" onClick={() => setIsEditingProfile(true)}>
+            <Button
+              variant="outline"
+              className="border-indigo-500 text-indigo-400 hover:bg-indigo-900/50 hover:text-indigo-300"
+              onClick={() => setIsEditingProfile(true)}
+            >
               Edit Profile
             </Button>
           )}

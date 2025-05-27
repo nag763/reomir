@@ -1,4 +1,4 @@
-'use client'
+'use client';
 
 // lib/firebase.js
 import { initializeApp, getApps } from 'firebase/app';

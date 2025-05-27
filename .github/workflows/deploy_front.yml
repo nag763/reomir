@@ -3,9 +3,7 @@ name: Deploy Cloud Run Front Service
 on:
   push:
     branches:
-      - master
-    paths:
-      - "front/**"
+      - check-gh-front-deploy
 
 env:
   # --- GCP Cloud Run Variables ---

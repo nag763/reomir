@@ -40,7 +40,7 @@ resource "google_api_gateway_gateway" "reomir_gateway" {
 
   project      = var.gcp_project_id
   api_config   = google_api_gateway_api_config.reomir_api_config.id
-  gateway_id   = "reomir-gateway" 
+  gateway_id   = "reomir-gateway"
   region       = var.gcp_region
   display_name = "Reomir API Gateway"
 

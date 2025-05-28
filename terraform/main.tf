@@ -89,6 +89,9 @@ module "api" {
     "identitytoolkit.googleapis.com",
     "iap.googleapis.com",
     "secretmanager.googleapis.com",
+    "apigateway.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "servicecontrol.googleapis.com",
   ]
   depends_on = [module.prioritized_api]
 }
@@ -139,6 +142,23 @@ module "service_account_gh" {
     module.api
   ]
 }
+
+module "service_account_apigw" {
+  source = "./modules/service_account"
+
+  sa_id = "apigateway"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/run.invoker"
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
 
 # ------------------------------------------------------------------------------
 # Module for managing service account for frontend
@@ -246,6 +266,30 @@ module "cloudrun_front" {
     module.secret_manager,
     module.service_account_front
   ]
+}
+
+module "api_gateway" {
+  source = "./modules/api_gateway"
+
+  gcp_project_id    = google_project.reomir.project_id
+  openapi_spec_path = "./swagger.yaml"
+
+
+  template_vars = {
+    CLOUDRUN_AGENT_URL     = module.cloudrun_agent.url
+    GOOGLE_OAUTH_CLIENT_ID = var.secrets["GOOGLE_CLIENT_ID"]
+  }
+
+  service_account_email = module.service_account_apigw.email
+
+  depends_on = [
+    module.cloudrun_agent,
+    module.cloudrun_front,
+    module.service_account_gh,
+    module.service_account_front,
+    module.wif
+  ]
+
 }
 
 output "project_name" {

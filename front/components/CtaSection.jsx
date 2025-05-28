@@ -4,22 +4,13 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Search } from 'lucide-react';
 import GoogleIcon from './GoogleIcon';
-import { useRouter } from 'next/navigation';
-
-import { auth, GoogleAuthProvider, signInWithPopup } from '@/lib/firebase';
+import { signIn } from 'next-auth/react';
 
 const CtaSection = () => {
-  const router = useRouter();
-  // IMPORTANT: Replace this alert with your actual Google Login implementation
   const handleLoginClick = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-      router.push('/auth/dashboard'); // Redirect to dashboard after successful login
-      // The AuthProvider will detect the change and re-render.
-    } catch (error) {
-      console.error('Sign-in error', error);
-    }
+    signIn('google', {
+      callbackUrl: '/auth/dashboard',
+    });
   };
 
   return (

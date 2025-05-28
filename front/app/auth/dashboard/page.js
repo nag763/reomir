@@ -4,14 +4,20 @@ import React, { useRef, useEffect } from 'react'; // Import useRef and update us
 import TopBar from '@/components/TopBar';
 import CommandBar from '@/components/CommandBar';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/AuthProvider';
+import { useSession } from 'next-auth/react';
 // Assuming Sidebar is needed for layout (even if not shown in your code snippet)
 // import Sidebar from '@/components/Sidebar';
 
 export default function Dashboard() {
-  const { user, loading } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const commandInputRef = useRef(null); // Create a ref for the CommandBar input
+
+  const user = {
+    name: session.user?.name || 'User',
+    email: session.user?.email || '',
+    image: session.user?.image || null,
+  };
 
   // Effect for handling keyboard shortcuts
   useEffect(() => {
@@ -50,9 +56,7 @@ export default function Dashboard() {
           {' '}
           {/* Added <main> and padding */}
           <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-          <p className="text-lg text-gray-400">
-            Welcome back, {user.displayName}!
-          </p>
+          <p className="text-lg text-gray-400">Welcome back, {user.name}!</p>
           <p className="text-sm text-gray-500">Email: {user.email}</p>
           {/* --- Add Your Dashboard Widgets Here --- */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

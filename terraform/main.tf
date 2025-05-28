@@ -89,8 +89,6 @@ module "api" {
     "identitytoolkit.googleapis.com",
     "iap.googleapis.com",
     "secretmanager.googleapis.com",
-    "firebase.googleapis.com",
-    "firestore.googleapis.com",
   ]
   depends_on = [module.prioritized_api]
 }
@@ -239,48 +237,6 @@ module "cloudrun_front" {
         version   = "latest"
       }
     },
-    {
-      name = "FIREBASE_API_KEY",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_API_KEY"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_AUTH_DOMAIN",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_AUTH_DOMAIN"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_PROJECT_ID",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_PROJECT_ID"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_STORAGE_BUCKET",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_STORAGE_BUCKET"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_MESSAGING_SENDER_ID",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_MESSAGING_SENDER_ID"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_APP_ID",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_APP_ID"]
-        version   = "latest"
-      }
-    },
   ]
 
   container_port = 3000
@@ -291,23 +247,6 @@ module "cloudrun_front" {
     module.service_account_front
   ]
 }
-
-# ------------------------------------------------------------------------------
-# Module for deploying Firebase
-# ------------------------------------------------------------------------------
-module "firebase" {
-  source          = "./modules/firebase"
-  firestore_rules = ["firestore.rules"]
-
-  gcp_project = google_project.reomir.project_id
-  region      = local.region
-
-  depends_on = [
-    module.api,
-    module.secret_manager
-  ]
-}
-
 
 output "project_name" {
   value = google_project.reomir.name

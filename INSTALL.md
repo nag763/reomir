@@ -42,17 +42,6 @@ To configure the OAuth client, follow these steps:
 
 See the official Google documentation for more details: [https://developers.google.com/identity/protocols/oauth2/web-server](https://developers.google.com/identity/protocols/oauth2/web-server)
 
-### 3 - Enable firebaae for project
-
-
-Unfortunately, Terraform is currently unable to enable Firebase automatically. You must manually enable it via the Google Cloud Console:
-
-1.  Go to the [Firebase Console](https://console.firebase.google.com/).
-2.  Click "Add project".
-3.  Select your Google Cloud project (the same one you're using for Terraform).
-4.  Follow the prompts to set up Firebase.
-
-
 ### 4 - Set tfvars
 
 As your project contains sensitive credentials dependent on your configuraiton, add a terraform.tfvars file in terraform folder with the following values
@@ -102,20 +91,3 @@ docker build -t $(terraform output -raw cloudrun_front_image) ../front && docker
 
 After pushing the images, re-run `terraform apply` to deploy the Cloud Run services.
 
-## 6 Firebase authentication
-
-Firebase Authentication coupled with Google OIDC is not something that can be done through terraform.
-
-To achieve this :
-
-1.  Go to the [Firebase Console](https://console.firebase.google.com/).
-2.  Select your project.
-3.  In the left navigation panel, click "Authentication".
-4.  Click the "Get started" button if you haven't already enabled Authentication.
-5.  Go to the "Sign-in method" tab.
-6.  Enable the "Google" sign-in provider.
-7.  Configure the "Web SDK configuration":
-  *   **Web client ID**: Use the Client ID obtained in step 2 when configuring the OAuth client.
-  *   **Web client secret**: Use the Client Secret obtained in step 2 when configuring the OAuth client.
-8.  Save the configuration.
-9. Don't forget to allow the domain in Firebase Auth config

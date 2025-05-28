@@ -27,17 +27,14 @@ import {
 import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react'; // Added LogOut
 import { useRouter } from 'next/navigation';
 
-import { updateProfile, deleteUser } from 'firebase/auth'; // Import Firebase auth functions
-import { auth, signOut } from '@/lib/firebase'; // Added signOut, assuming it's exported from @/lib/firebase
-import { useAuth } from '@/components/AuthProvider';
-import LoadingScreen from '@/components/LoadingScreen'; // For initial loading
+import { signOut, useSession } from 'next-auth/react';
 
 export default function SettingsPage() {
   const [confirmInput, setConfirmInput] = useState('');
   const isConfirmDisabled = confirmInput !== 'delete me';
 
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { data: session, status } = useSession();
 
   // States for profile editing
   const [isEditingProfile, setIsEditingProfile] = useState(false);
@@ -53,11 +50,11 @@ export default function SettingsPage() {
   // State for sign out
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      setNewDisplayName(user.displayName || '');
-    }
-  }, [user]);
+  const user = {
+    name: session.user?.name || 'User',
+    email: session.user?.email || '',
+    image: session.user?.image || null,
+  };
 
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
@@ -115,19 +112,7 @@ export default function SettingsPage() {
   };
 
   const handleSignOut = async () => {
-    setIsSigningOut(true);
-    setFeedback({ message: '', type: '' }); // Clear previous feedback
-    try {
-      await signOut(auth);
-      router.push('/'); // Redirect to home after sign out
-    } catch (error) {
-      console.error('Error signing out: ', error);
-      setFeedback({
-        message: `Failed to sign out. Please try again. (${error.message})`,
-        type: 'error',
-      });
-      setIsSigningOut(false); // Only set to false on error
-    }
+    signOut({ callbackUrl: '/' });
   };
 
   return (
@@ -158,7 +143,7 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
             <Avatar className="h-10 w-10 mr-4 border-2 border-gray-600">
-              <AvatarImage src={user?.providerData[0]?.photoURL} />
+              <AvatarImage src={user?.image} />
               <AvatarFallback>
                 {user?.displayName?.charAt(0) || 'U'}
               </AvatarFallback>
@@ -180,7 +165,7 @@ export default function SettingsPage() {
                 disabled={isUpdatingProfile}
               />
             ) : (
-              <p className="text-lg">{user?.displayName || 'N/A'}</p>
+              <p className="text-lg">{user?.name || 'N/A'}</p>
             )}
           </div>
           <div>

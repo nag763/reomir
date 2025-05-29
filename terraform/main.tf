@@ -94,7 +94,8 @@ module "api" {
     "servicecontrol.googleapis.com",
     "cloudfunctions.googleapis.com",
     "cloudbuild.googleapis.com",
-    "iamcredentials.googleapis.com"
+    "iamcredentials.googleapis.com",
+    "firestore.googleapis.com"
   ]
   depends_on = [module.prioritized_api]
 }
@@ -118,6 +119,17 @@ module "repository" {
 
   gcp_region  = local.region
   gcp_project = google_project.reomir.project_id
+
+  depends_on = [
+    module.api
+  ]
+}
+
+module "firestore" {
+  source = "./modules/firestore"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
 
   depends_on = [
     module.api

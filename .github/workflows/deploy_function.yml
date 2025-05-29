@@ -47,4 +47,4 @@ jobs:
           region: ${{ env.GCP_REGION }}
           project_id: ${{ env.GCP_PROJECT_ID }}
           source_dir: ${{ env.SOURCE_DIRECTORY }}/${{ matrix.function }}
-          trigger_http: true
+          entry_point: handler

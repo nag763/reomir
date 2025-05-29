@@ -3,9 +3,9 @@ name: Deploy Cloud Functions
 on:
   push:
     branches:
-      - "*"
-    # paths:
-    #   - 'functions/**' # Only trigger on changes in the front directory
+      - "master"
+    paths:
+      - 'functions/**' # Only trigger on changes in the front directory
 
 env:
   # --- GCP Cloud Functions Variables ---

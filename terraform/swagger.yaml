@@ -33,7 +33,7 @@ paths:
           description: "Unauthorized - Token missing or invalid"
         "403":
           description: "Forbidden - Token valid but user not permitted"
-  /api/v1/user: # Corrected: Removed trailing slash
+  /api/v1/users: # Corrected: Removed trailing slash
     get:
       summary: "Retrieves user information"
       operationId: "getUserInfo"

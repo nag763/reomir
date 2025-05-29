@@ -40,7 +40,11 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Deploy Cloud Function
-        id: deploy_function
-        working-directory: ${{ env.SOURCE_DIRECTORY }}/${{ matrix.function }}
-        run: |-
-          gcloud functions deploy reomir-${{ matrix.function }} --gen2 --runtime=python313 --region=${{ env.GCP_REGION }} --source=. --entry-point=handler
+        uses: "google-github-actions/deploy-cloud-functions@v3"
+        with:
+          name: reomir-${{ matrix.function }}
+          runtime: python313
+          region: ${{ env.GCP_REGION }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          source_dir: ${{ env.SOURCE_DIRECTORY }}/${{ matrix.function }}
+          trigger_http: true

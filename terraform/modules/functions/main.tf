@@ -20,7 +20,7 @@ resource "google_cloudfunctions2_function" "function" {
   service_config {
     all_traffic_on_latest_revision = true
     available_cpu                  = "0.1666"
-    available_memory               = "256M"
+    available_memory               = "256Mi"
     environment_variables = {
       LOG_EXECUTION_ID = "true"
     }

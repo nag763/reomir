@@ -93,7 +93,8 @@ module "api" {
     "servicemanagement.googleapis.com",
     "servicecontrol.googleapis.com",
     "cloudfunctions.googleapis.com",
-    "cloudbuild.googleapis.com"
+    "cloudbuild.googleapis.com",
+    "iamcredentials.googleapis.com"
   ]
   depends_on = [module.prioritized_api]
 }
@@ -138,6 +139,7 @@ module "service_account_gh" {
     "roles/artifactregistry.writer",
     "roles/iam.serviceAccountUser",
     "roles/cloudbuild.builds.editor",
+    "roles/cloudfunctions.developer"
   ]
 
   depends_on = [
@@ -288,7 +290,7 @@ module "function_user" {
   bucket_object = "reomir-users.zip"
 
   function_name = "reomir-users"
-  entry_point   = "hello_http"
+  entry_point   = "handler"
 }
 
 module "api_gateway" {

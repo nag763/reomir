@@ -8,6 +8,20 @@ schemes:
 produces:
   - "application/json"
 
+responses:
+  CORSPreflightSuccess: # Name for your reusable response
+    description: "CORS preflight successful. Standard CORS headers applied."
+    headers:
+      Access-Control-Allow-Origin:
+        type: "string"
+        default: "*" 
+      Access-Control-Allow-Headers:
+        type: "string"
+        default: "Content-Type, Authorization"
+      Access-Control-Max-Age:
+        type: "integer"
+        default: 3600
+
 securityDefinitions:
   google_id_token_auth:
     authorizationUrl: ""
@@ -33,7 +47,7 @@ paths:
           description: "Unauthorized - Token missing or invalid"
         "403":
           description: "Forbidden - Token valid but user not permitted"
-  /api/v1/users: # Corrected: Removed trailing slash
+  /api/v1/users/self: # Corrected: Removed trailing slash
     get:
       summary: "Retrieves user information"
       operationId: "getUserInfo"
@@ -44,3 +58,35 @@ paths:
       responses:
         "200":
           description: "Successful operation"
+          headers: # <--- Recommended for CORS preflight
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Max-Age:
+              type: integer
+    options: 
+      summary: "CORS preflight for users endpoint"
+      operationId: "optionsUsers"
+      # security:
+      #   - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_USER_URL}" # Point to the same backend
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers: # <--- Recommended for CORS preflight
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Max-Age:
+              type: integer

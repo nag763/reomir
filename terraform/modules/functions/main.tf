@@ -18,16 +18,15 @@ resource "google_cloudfunctions2_function" "function" {
   }
 
   service_config {
-    all_traffic_on_latest_revision = true
-    available_cpu                  = "0.1666"
-    available_memory               = "256Mi"
-    environment_variables = {
-      LOG_EXECUTION_ID = "true"
-    }
+    all_traffic_on_latest_revision   = true
+    available_cpu                    = "0.1666"
+    available_memory                 = "256Mi"
+    environment_variables            = var.environment_variables
     ingress_settings                 = "ALLOW_ALL"
     max_instance_count               = 20
     max_instance_request_concurrency = 1
     min_instance_count               = 0
+
 
   }
 }

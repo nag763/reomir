@@ -27,3 +27,9 @@ variable "entry_point" {
   description = "The name of the function (within the source code) that will be executed."
   type        = string
 }
+
+variable "environment_variables" {
+  description = "A map of environment variables to set for the function."
+  type        = map(string)
+  default     = {}
+}

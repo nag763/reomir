@@ -5,6 +5,7 @@ import TopBar from '@/components/TopBar';
 import CommandBar from '@/components/CommandBar';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import { callAuthenticatedApi } from '@/lib/apiClient';
 // Assuming Sidebar is needed for layout (even if not shown in your code snippet)
 // import Sidebar from '@/components/Sidebar';
 
@@ -12,6 +13,8 @@ export default function Dashboard() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const commandInputRef = useRef(null); // Create a ref for the CommandBar input
+
+  const data = callAuthenticatedApi('users/self', { method: 'GET' });
 
   const user = {
     name: session.user?.name || 'User',

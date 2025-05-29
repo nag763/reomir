@@ -289,6 +289,10 @@ module "function_user" {
   bucket_name   = module.function_bucket.name
   bucket_object = "reomir-users.zip"
 
+  environment_variables = {
+    LOG_EXECUTION_ID = "true"
+  }
+
   function_name = "reomir-users"
   entry_point   = "handler"
 }

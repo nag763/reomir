@@ -6,7 +6,7 @@ const API_GATEWAY_BASE_URL = process.env.NEXT_PUBLIC_API_GATEWAY_URL;
 
 export async function callAuthenticatedApi(
   endpoint,
-  { options = {} } = {},
+  options = {},
   version = 'v1',
 ) {
   const session = await getSession();

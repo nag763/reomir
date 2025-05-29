@@ -14,8 +14,6 @@ export default function Dashboard() {
   const router = useRouter();
   const commandInputRef = useRef(null); // Create a ref for the CommandBar input
 
-  const data = callAuthenticatedApi('users/self', { method: 'GET' });
-
   const user = {
     name: session.user?.name || 'User',
     email: session.user?.email || '',

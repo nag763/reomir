@@ -9,18 +9,52 @@ produces:
   - "application/json"
 
 responses:
-  CORSPreflightSuccess: # Name for your reusable response
-    description: "CORS preflight successful. Standard CORS headers applied."
-    headers:
-      Access-Control-Allow-Origin:
-        type: "string"
-        default: "*" 
-      Access-Control-Allow-Headers:
-        type: "string"
-        default: "Content-Type, Authorization"
-      Access-Control-Max-Age:
-        type: "integer"
-        default: 3600
+  UnauthorizedError:
+    description: "Unauthorized - Token missing, invalid, or expired"
+  ForbiddenError:
+    description: "Forbidden - Token valid but user not permitted for the action"
+  InternalServerError:
+    description: "Internal Server Error"
+  SuccessUserSelf:
+    description: "Successful operation - User profile data"
+    schema:
+      type: object
+      properties:
+        # Define what your GET /users/self returns
+        userId:
+          type: string
+          example: "google-user-id-123"
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        name:
+          type: string
+          example: "Jane Doe"
+        cookieConsent:
+          type: string
+          enum: ["true", "false", null] # Or just "true" if that's the only valid consented state
+          example: "true"
+        organizationName:
+          type: string
+          example: "Innovatech Solutions"
+        # Add other fields your /users/self GET endpoint returns
+
+definitions:
+  UserProfileUpdateRequest:
+    type: object
+    properties:
+      cookieConsent:
+        type: string
+        enum: ["true"] # Expecting 'true' to be sent
+        description: "Indicates user's consent to cookies."
+        example: "true"
+      organizationName:
+        type: string
+        description: "Name of the organization the user wants to create or is part of."
+        example: "My Awesome Org"
+    required:
+      - cookieConsent # cookieConsent is mandatory for this update
 
 securityDefinitions:
   google_id_token_auth:
@@ -69,6 +103,42 @@ paths:
               type: string
             Access-Control-Max-Age:
               type: integer
+    post:
+      summary: "Updates the current authenticated user's profile (e.g., consent, organization)"
+      operationId: "updateCurrentUserProfile"
+      security:
+        - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_USER_URL}" # Variable from Terraform
+        # path_translation: CONSTANT_ADDRESS
+      parameters:
+        - in: "body"
+          name: "body"
+          description: "User profile data to update."
+          required: true
+          schema:
+            $ref: "#/definitions/UserProfileUpdateRequest"
+      responses:
+        "200":
+          description: "Profile updated successfully"
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Profile updated successfully."
+              # Optionally return the updated profile, similar to SuccessUserSelf
+              profile:
+                $ref: "#/responses/SuccessUserSelf/schema"
+        "400":
+          description: "Bad Request - Invalid input data"
+        "401":
+          $ref: "#/responses/UnauthorizedError"
+        "403":
+          $ref: "#/responses/ForbiddenError"
+        "500":
+          $ref: "#/responses/InternalServerError"
+
     options: 
       summary: "CORS preflight for users endpoint"
       operationId: "optionsUsers"

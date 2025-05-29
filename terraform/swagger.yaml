@@ -9,23 +9,22 @@ produces:
   - "application/json"
 
 securityDefinitions:
-  google_id_token_auth: 
-    authorizationUrl: "" 
-    flow: "implicit"     
+  google_id_token_auth:
+    authorizationUrl: ""
+    flow: "implicit"
     type: "oauth2"
     x-google-issuer: "https://accounts.google.com"
     x-google-jwks_uri: "https://www.googleapis.com/oauth2/v3/certs"
     x-google-audiences: ${GOOGLE_OAUTH_CLIENT_ID}
 
 paths:
-  /agent:
+  /api/v1/agent: # Corrected: Removed trailing slash
     get:
       summary: "Performs an action in the reomir-agent"
       operationId: "performAgentAction"
       security:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
-        # URL of your reomir-agent Cloud Run service
         address: "${CLOUDRUN_AGENT_URL}" # Replace with actual URL
       responses:
         "200":
@@ -34,3 +33,14 @@ paths:
           description: "Unauthorized - Token missing or invalid"
         "403":
           description: "Forbidden - Token valid but user not permitted"
+  /api/v1/user: # Corrected: Removed trailing slash
+    get:
+      summary: "Retrieves user information"
+      operationId: "getUserInfo"
+      security:
+        - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
+      x-google-backend:
+        address: "${CLOUDFUN_USER_URL}" # Replace with actual URL
+      responses:
+        "200":
+          description: "Successful operation"

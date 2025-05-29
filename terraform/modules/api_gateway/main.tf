@@ -48,7 +48,7 @@ resource "google_api_gateway_gateway" "reomir_gateway" {
 }
 
 # --- Output ---
-output "reomir_api_gateway_url" {
+output "url" {
   description = "The default hostname of the deployed API Gateway for Reomir."
   value       = "https://${google_api_gateway_gateway.reomir_gateway.default_hostname}"
 }

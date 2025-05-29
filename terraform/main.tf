@@ -92,6 +92,8 @@ module "api" {
     "apigateway.googleapis.com",
     "servicemanagement.googleapis.com",
     "servicecontrol.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudbuild.googleapis.com"
   ]
   depends_on = [module.prioritized_api]
 }
@@ -268,6 +270,27 @@ module "cloudrun_front" {
   ]
 }
 
+module "function_bucket" {
+  source = "./modules/bucket"
+
+  name        = "reomir-function-bucket"
+  location    = local.region
+  gcp_project = google_project.reomir.project_id
+}
+
+module "function_user" {
+  source = "./modules/functions"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
+
+  bucket_name   = module.function_bucket.name
+  bucket_object = "reomir-users.zip"
+
+  function_name = "reomir-users"
+  entry_point   = "hello_http"
+}
+
 module "api_gateway" {
   source = "./modules/api_gateway"
 
@@ -277,6 +300,7 @@ module "api_gateway" {
 
   template_vars = {
     CLOUDRUN_AGENT_URL     = module.cloudrun_agent.url
+    CLOUDFUN_USER_URL      = module.function_user.url
     GOOGLE_OAUTH_CLIENT_ID = var.secrets["GOOGLE_CLIENT_ID"]
   }
 
@@ -311,4 +335,9 @@ output "cloudrun_front_image" {
 
 output "cloudrun_agent_image" {
   value = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-agent:latest"
+}
+
+output "gateway_url" {
+  description = "The URL of the deployed API Gateway."
+  value       = module.api_gateway.url
 }

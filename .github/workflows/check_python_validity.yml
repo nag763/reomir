@@ -4,14 +4,20 @@ on:
   push:
     paths:
       - './agent/**/*.py'
+      - './functions/**/*.py'
   pull_request:
 
 jobs:
   pyink-check:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        working_directory: ['./agent/', './functions/']
+
     defaults:
       run:
-        working-directory: ./agent/  # Set the working directory to the agent folder
+        working-directory: ${{ matrix.working_directory }}
+
 
     steps:
       - name: Checkout code

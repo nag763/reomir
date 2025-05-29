@@ -44,10 +44,9 @@ jobs:
         id: deploy_function
         working-directory: ${{ env.SOURCE_DIRECTORY }}/${{ matrix.function }}
         run: |-
-
           gcloud functions deploy reomir-${{ matrix.function }} \
             --gen2 \
             --runtime=python313 \ 
             --region=${{ env.GCP_REGION }} \
-            --source=.
+            --source=. \
             --entry-point=handler

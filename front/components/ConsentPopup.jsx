@@ -13,61 +13,48 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { db } from '@/lib/firebase'; // Make sure db (Firestore instance) is exported from firebase.js
-import {
-  doc,
-  setDoc,
-  addDoc,
-  collection,
-  serverTimestamp,
-  deleteDoc,
-  getDoc, // Added getDoc
-} from 'firebase/firestore';
-import { useAuth } from '@/components/AuthProvider';
+import { signOut as nextAuthSignOut, useSession } from 'next-auth/react'; // Use next-auth
+import { useUserProfile } from '@/components/UserProfileProvider'; // Your context for profile data
+import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client
+import { useRouter } from 'next/navigation';
 
 export default function ConsentPopup() {
-  const { user } = useAuth();
+  // session for auth status, profile for app-specific data including consent
+  const { data: session, status: sessionStatus } = useSession();
+  const { profile, isLoadingProfile, profileError, updateProfile } =
+    useUserProfile();
+
   const [isOpen, setIsOpen] = useState(false);
-  const [cookieConsent, setCookieConsent] = useState(false);
+  const [hasAgreedToCookies, setHasAgreedToCookies] = useState(false);
   const [wantsToCreateOrg, setWantsToCreateOrg] = useState(false);
   const [organizationName, setOrganizationName] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [isCheckingConsent, setIsCheckingConsent] = useState(true); // To manage initial loading state
+  const router = useRouter();
 
   useEffect(() => {
-    const checkConsentStatus = async () => {
-      if (user) {
-        setIsCheckingConsent(true);
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-
-          if (
-            userDocSnap.exists() &&
-            userDocSnap.data().cookieConsentGiven === true
-          ) {
-            setIsOpen(false); // User has already consented
-          } else {
-            setIsOpen(true); // Show popup if no doc or no/false consent
-          }
-        } catch (err) {
-          console.error('Error fetching user consent status:', err);
-          setError(
-            'Could not verify your consent status. Please try again or contact support.',
-          );
-          setIsOpen(true); // Fallback to showing popup on error to ensure consent is eventually captured
-        } finally {
-          setIsCheckingConsent(false);
-        }
+    // Determine if popup should be open based on session and profile data
+    if (sessionStatus === 'authenticated' && !isLoadingProfile) {
+      if (profileError) {
+        // If there was an error fetching profile, probably show popup to try again
+        // or handle error more gracefully elsewhere. For now, show it.
+        setError('Could not load your profile settings. Please try again.');
+        setIsOpen(true);
+      } else if (!profile) {
+        console.log(
+          "ConsentPopup: Profile missing or consent not 'true'. Opening popup.",
+          profile,
+        );
+        setIsOpen(true);
       } else {
-        setIsOpen(false); // No user, no popup
-        setIsCheckingConsent(false);
+        // User is authenticated, profile loaded, and consent is 'true'
+        setIsOpen(false);
       }
-    };
-
-    checkConsentStatus();
-  }, [user]); // Effect runs when user object becomes available
+    } else if (sessionStatus === 'unauthenticated') {
+      setIsOpen(false); // No user, no popup
+    }
+    // If sessionStatus is 'loading', UserProfileProvider will show a global loader.
+  }, [sessionStatus, profile, isLoadingProfile, profileError]);
 
   const closePopup = () => {
     setIsOpen(false);
@@ -75,139 +62,97 @@ export default function ConsentPopup() {
   };
 
   const handleSubmit = async () => {
-    if (!user) {
+    if (sessionStatus !== 'authenticated') {
       setError('User not authenticated. Please refresh.');
       return;
     }
 
-    if (!cookieConsent) {
+    if (!hasAgreedToCookies) {
       setError('You must agree to the use of essential cookies to continue.');
       return;
     }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      const userRef = doc(db, 'users', user.uid);
-
-      // 1. Store cookie consent and basic user info (create or update)
-      const userDataToSet = {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName || null, // Ensure displayName is included
-        cookieConsentGiven: cookieConsent,
-        preferencesLastUpdatedAt: serverTimestamp(),
-      };
-      // If it's the first time, also set createdAt
-      // For simplicity, setDoc with merge will handle this well.
-      // We can add createdAt if we check if the doc exists first, or rely on a separate signup function to create it.
-      // For now, this ensures preferences are updated/set.
-      await setDoc(userRef, userDataToSet, { merge: true });
-
-      // 2. Handle organization creation
-      if (wantsToCreateOrg && organizationName.trim() !== '') {
-        const newOrgRef = await addDoc(collection(db, 'organizations'), {
-          name: organizationName.trim(),
-          ownerId: user.uid,
-          members: [user.uid], // Owner is the first member
-          createdAt: serverTimestamp(),
-        });
-
-        // Link user to this organization
-        await setDoc(
-          userRef,
-          {
-            organizationId: newOrgRef.id,
-            organizationName: organizationName.trim(), // Denormalize for easier display
-          },
-          { merge: true },
-        );
-      }
-
-      closePopup();
-    } catch (err) {
-      console.error('Error saving preferences: ', err);
-      setError(`Failed to save preferences: ${err.message}. Please try again.`);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleExitAndDeleteProfile = async () => {
-    if (!user) {
-      setError('User not authenticated. Cannot delete profile.');
+    if (wantsToCreateOrg && organizationName.trim() === '') {
+      setError(
+        'Please enter an organization name or uncheck the option to create one.',
+      );
       return;
     }
 
-    // Optional: Add a window.confirm for better UX, though not explicitly requested.
-    // const confirmed = window.confirm("Are you sure you want to delete your profile and all associated data? This action cannot be undone.");
-    // if (!confirmed) return;
-
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError('');
 
+    const payload = {
+      cookieConsent: 'true', // String 'true' as requested
+    };
+
+    if (wantsToCreateOrg) {
+      payload.organizationName = organizationName.trim();
+    }
+
     try {
-      const userId = user.uid; // Store UID before user object is potentially invalidated
-
-      // 1. Delete Firebase Auth user
-      // This will also sign the user out. The AuthProvider should handle the redirect.
-      await user.delete();
-
-      // 2. Delete Firestore data for the user
-      const userDocRef = doc(db, 'users', userId);
-      await deleteDoc(userDocRef);
-
-      // No need to setIsOpen(false) here, as the user session will end,
-      // and useEffect will close the dialog if `user` becomes null.
-      // localStorage key is not set, which is correct.
+      // API endpoint to update user's consent and potentially organization
+      // This endpoint should exist on your reomir-agent, exposed via API Gateway
+      await updateProfile({ cookieConsent: 'true' });
     } catch (err) {
-      console.error('Error deleting profile: ', err);
-      let errorMessage = `Failed to delete profile: ${err.message}.`;
-      if (err.code === 'auth/requires-recent-login') {
-        errorMessage =
-          'This operation is sensitive and requires recent authentication. Please sign out, sign back in, and try again.';
-      }
-      setError(errorMessage);
+      console.error('Error saving preferences:', err);
+      setError(err.message || 'Failed to save preferences. Please try again.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (!isOpen || isCheckingConsent) {
-    // Don't render if not open or still checking consent
+  const handleDenyAndSignOut = async () => {
+    setIsSubmitting(true); // Use isSubmitting to disable buttons
+    await nextAuthSignOut({ callbackUrl: '/' }); // Use next-auth signOut
+    // No need to setIsOpen(false) explicitly, session change will trigger useEffect
+    setIsSubmitting(false);
+  };
+
+  // If popup shouldn't be open, or global loading is happening (handled by UserProfileProvider)
+  if (!isOpen) {
     return null;
   }
 
   return (
-    <Dialog open={isOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && hasAgreedToCookies)
+          setIsOpen(false); /* Allow closing if consent given */
+      }}
+    >
+      {/* Keep it modal if consent is not yet given */}
       <DialogContent
         className="sm:max-w-[525px] bg-gray-800 border-gray-700 text-gray-100 font-mono"
-        onEscapeKeyDown={(e) => e.preventDefault()} // Prevent closing on Escape key
-        onPointerDownOutside={(e) => e.preventDefault()} // Prevent closing on overlay click
+        onEscapeKeyDown={(e) => {
+          if (!profile?.cookieConsent) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (!profile?.cookieConsent) e.preventDefault();
+        }}
       >
         <DialogHeader>
           <DialogTitle className="text-xl text-gray-50">
             Welcome to Reomir!
           </DialogTitle>
           <DialogDescription className="text-gray-400 pt-2">
-            Help us tailor your experience. Your preferences will be saved.
+            To continue, please confirm your cookie preferences.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           <div className="flex items-start space-x-3">
             <Checkbox
               id="cookieConsent"
-              checked={cookieConsent}
-              onCheckedChange={(checked) => setCookieConsent(!!checked)}
+              checked={hasAgreedToCookies}
+              onCheckedChange={(checked) => setHasAgreedToCookies(!!checked)}
               className="mt-1 border-gray-500 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 data-[state=checked]:text-white focus-visible:ring-indigo-500"
             />
             <Label
               htmlFor="cookieConsent"
               className="text-sm font-normal text-gray-300"
             >
-              I agree to the use of essential cookies to ensure the proper
-              functioning of this application.
+              I agree to the use of essential cookies for application
+              functionality.
             </Label>
           </div>
 
@@ -217,20 +162,18 @@ export default function ConsentPopup() {
               checked={wantsToCreateOrg}
               onCheckedChange={(checked) => setWantsToCreateOrg(!!checked)}
               className="mt-1 border-gray-500 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 data-[state=checked]:text-white focus-visible:ring-indigo-500"
+              disabled={!hasAgreedToCookies || isSubmitting}
             />
             <Label
               htmlFor="createOrg"
               className="text-sm font-normal text-gray-300"
             >
-              I&apos;d like to create a new organization to manage projects and
-              team members.
+              I&apos;d like to create a new organization (optional).
             </Label>
           </div>
 
-          {wantsToCreateOrg && (
+          {wantsToCreateOrg && hasAgreedToCookies && (
             <div className="grid gap-2 pl-6">
-              {' '}
-              {/* Indent org name input */}
               <Label htmlFor="organizationName" className="text-gray-400">
                 Organization Name
               </Label>
@@ -238,9 +181,9 @@ export default function ConsentPopup() {
                 id="organizationName"
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
-                placeholder="e.g., Innovatech Solutions"
+                placeholder="e.g., My Awesome Org"
                 className="bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500"
-                disabled={isLoading}
+                disabled={isSubmitting}
               />
             </div>
           )}
@@ -251,24 +194,26 @@ export default function ConsentPopup() {
             </p>
           )}
         </div>
-        <DialogFooter className="sm:justify-between gap-2">
+        <DialogFooter className="sm:justify-between gap-2 flex-col sm:flex-row">
           <Button
             variant="outline"
-            onClick={handleExitAndDeleteProfile}
-            disabled={isLoading}
+            onClick={handleDenyAndSignOut}
+            disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
-            Exit & Delete Profile
+            Deny & Sign Out
           </Button>
           <Button
-            variant="default" // Uses the primary indigo button style
+            variant="default"
             onClick={handleSubmit}
             disabled={
-              isLoading ||
-              !cookieConsent ||
+              isSubmitting ||
+              !hasAgreedToCookies ||
               (wantsToCreateOrg && organizationName.trim() === '')
             }
+            className="w-full sm:w-auto"
           >
-            {isLoading ? 'Saving...' : 'Save & Continue'}
+            {isSubmitting ? 'Saving...' : 'Save & Continue'}
           </Button>
         </DialogFooter>
       </DialogContent>

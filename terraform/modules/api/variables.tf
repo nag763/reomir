@@ -11,5 +11,5 @@ variable "project_id" {
 # ------------------------------------------------------------------------------
 variable "apis" {
   type        = list(string)
-  description = "A list of apis to enable"
+  description = "A list of APIs to enable"
 }

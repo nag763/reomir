@@ -1,24 +1,25 @@
 'use client';
 
-import { useAuth } from './AuthProvider';
-import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import LoadingScreen from '@/components/LoadingScreen';
+import { useSession } from 'next-auth/react';
 
 const ProtectedRoute = ({ children }) => {
-  const { user, loading } = useAuth();
+  const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    // If auth state is determined (not loading) and there's no user, redirect.
-    if (!loading && !user) {
-      router.push('/'); // Redirect to homepage
-    }
-  }, [user, loading, router]);
+    if (status === 'loading') return;
+    if (!session) router.push('/');
+  }, [session, status, router]);
 
-  // If still loading or if there's no user yet (will redirect soon), show loading.
-  if (loading || !user) {
+  if (status === 'loading') {
     return <LoadingScreen />;
+  }
+
+  if (!session) {
+    router.push('/');
   }
 
   // If loading is finished AND a user exists, render the children.

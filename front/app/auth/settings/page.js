@@ -1,6 +1,7 @@
+// settings/page.js
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -24,85 +25,76 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react'; // Added LogOut
-import { useRouter } from 'next/navigation';
+import { FeedbackAlert } from '@/components/FeedbackAlert'; // Suggested import
+import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react';
+import { useUserProfile } from '@/components/UserProfileProvider';
+import { signOut, useSession } from 'next-auth/react';
 
-import { updateProfile, deleteUser } from 'firebase/auth'; // Import Firebase auth functions
-import { auth, signOut } from '@/lib/firebase'; // Added signOut, assuming it's exported from @/lib/firebase
-import { useAuth } from '@/components/AuthProvider';
-import LoadingScreen from '@/components/LoadingScreen'; // For initial loading
+const FEEDBACK_TIMEOUT = 3000;
 
 export default function SettingsPage() {
+  const { data: session } = useSession();
+  const { profile, updateProfile, deleteProfile } = useUserProfile();
+
   const [confirmInput, setConfirmInput] = useState('');
-  const isConfirmDisabled = confirmInput !== 'delete me';
-
-  const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
-
-  // States for profile editing
-  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState('');
+  const [feedback, setFeedback] = useState({ message: '', type: 'info' });
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
-
-  // State for feedback messages (e.g., success/error)
-  const [feedback, setFeedback] = useState({ message: '', type: '' }); // type: 'success' or 'error'
-
-  // State for account deletion
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
-
-  // State for sign out
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      setNewDisplayName(user.displayName || '');
-    }
-  }, [user]);
+  const inputRef = useRef(null);
 
-  const handleDeleteAccount = async () => {
-    setIsDeletingAccount(true);
-    setFeedback({ message: '', type: '' });
-    try {
-      if (auth.currentUser) {
-        await deleteUser(auth.currentUser);
-        router.push('/'); // Redirect to home/login after deletion
-      }
-    } catch (error) {
-      if (error.code === 'auth/requires-recent-login') {
-        setFeedback({
-          message:
-            'This action requires a recent login. Please sign out and sign back in to delete your account.',
-          type: 'error',
-        });
-      } else {
-        setFeedback({
-          message: `Error deleting account: ${error.message}`,
-          type: 'error',
-        });
-      }
-      setConfirmInput(''); // Clear input on error
-    } finally {
-      setIsDeletingAccount(false);
-    }
+  const derivedUser = {
+    name: profile?.displayName || session?.user?.name || 'User',
+    email: session?.user?.email || '',
+    image: session?.user?.image || null,
   };
 
+  useEffect(() => {
+    document.title = 'Settings';
+  }, []);
+
+  useEffect(() => {
+    // Initialize newDisplayName when profile data is available or changes
+    if (profile || session?.user) {
+      setNewDisplayName(profile?.displayName || session?.user?.name || '');
+    }
+  }, [profile, session?.user]);
+
+  useEffect(() => {
+    if (isEditingProfile && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isEditingProfile]);
+
+  useEffect(() => {
+    if (feedback.message) {
+      const timer = setTimeout(
+        () => setFeedback({ message: '', type: 'info' }),
+        FEEDBACK_TIMEOUT,
+      );
+      return () => clearTimeout(timer);
+    }
+  }, [feedback.message]);
+
   const handleProfileUpdate = async () => {
-    if (!user || newDisplayName === user.displayName) {
+    if (newDisplayName === derivedUser.name || !newDisplayName.trim()) {
+      setFeedback({ message: 'No changes or invalid name.', type: 'info' });
       setIsEditingProfile(false);
-      setFeedback({ message: 'No changes to save.', type: 'info' });
-      setTimeout(() => setFeedback({ message: '', type: '' }), 3000);
       return;
     }
     setIsUpdatingProfile(true);
-    setFeedback({ message: '', type: '' });
+    setFeedback({ message: '', type: 'info' });
     try {
-      await updateProfile(auth.currentUser, { displayName: newDisplayName });
+      await updateProfile({ displayName: newDisplayName.trim() }, true);
       setFeedback({
         message: 'Profile updated successfully!',
         type: 'success',
       });
       setIsEditingProfile(false);
-      // user object from useAuth will update via onAuthStateChanged
     } catch (error) {
       setFeedback({
         message: `Error updating profile: ${error.message}`,
@@ -110,57 +102,55 @@ export default function SettingsPage() {
       });
     } finally {
       setIsUpdatingProfile(false);
-      setTimeout(() => setFeedback({ message: '', type: '' }), 5000);
     }
   };
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
-    setFeedback({ message: '', type: '' }); // Clear previous feedback
     try {
-      await signOut(auth);
-      router.push('/'); // Redirect to home after sign out
+      await signOut({ callbackUrl: '/' });
     } catch (error) {
-      console.error('Error signing out: ', error);
-      setFeedback({
-        message: `Failed to sign out. Please try again. (${error.message})`,
-        type: 'error',
-      });
-      setIsSigningOut(false); // Only set to false on error
+      // Handle sign-out error if necessary, though signOut usually redirects
+      console.error('Sign out error:', error);
+      setFeedback({ message: 'Error signing out.', type: 'error' });
+      setIsSigningOut(false);
     }
   };
 
+  const handleDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    setFeedback({ message: '', type: 'info' });
+    try {
+      await deleteProfile();
+      // signOut is called within deleteProfile in the provider, leading to redirect
+    } catch (error) {
+      setFeedback({
+        message: `Error deleting account: ${error.message}`,
+        type: 'error',
+      });
+      setIsDeletingAccount(false);
+    }
+  };
+
+  const isConfirmDeleteDisabled = confirmInput !== 'delete me';
+
   return (
     <div className="space-y-8 p-4 md:p-0">
-      <title>Settings</title>
       <h1 className="text-3xl font-bold mb-6 flex items-center">
         <User className="mr-3 h-8 w-8 text-indigo-400" />
         User Settings
       </h1>
 
-      {/* Feedback Message Display */}
-      {feedback.message && (
-        <div
-          className={`p-4 mb-4 rounded-md text-sm ${
-            feedback.type === 'error'
-              ? 'bg-red-900/30 text-red-300 border border-red-700'
-              : feedback.type === 'success'
-                ? 'bg-green-900/30 text-green-300 border border-green-700'
-                : 'bg-blue-900/30 text-blue-300 border border-blue-700'
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
+      <FeedbackAlert message={feedback.message} type={feedback.type} />
 
       {/* User Profile Card */}
       <Card className="bg-gray-800 border-gray-700 text-gray-100">
         <CardHeader>
           <CardTitle className="text-xl flex items-center">
             <Avatar className="h-10 w-10 mr-4 border-2 border-gray-600">
-              <AvatarImage src={user?.providerData[0]?.photoURL} />
+              <AvatarImage src={derivedUser.image} alt={derivedUser.name} />
               <AvatarFallback>
-                {user?.displayName?.charAt(0) || 'U'}
+                {derivedUser.name?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
             Profile Details
@@ -171,21 +161,25 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4 font-mono">
           <div>
-            <Label className="text-gray-500">Name:</Label>
+            <Label htmlFor="displayName" className="text-gray-500">
+              Name:
+            </Label>
             {isEditingProfile ? (
               <Input
+                id="displayName"
+                ref={inputRef}
                 className="mt-1 bg-gray-700 border-gray-600 text-lg"
                 value={newDisplayName}
                 onChange={(e) => setNewDisplayName(e.target.value)}
                 disabled={isUpdatingProfile}
               />
             ) : (
-              <p className="text-lg">{user?.displayName || 'N/A'}</p>
+              <p className="text-lg">{derivedUser.name || 'N/A'}</p>
             )}
           </div>
           <div>
             <Label className="text-gray-500">Email:</Label>
-            <p className="text-lg">{user?.email || 'N/A'}</p>
+            <p className="text-lg">{derivedUser.email || 'N/A'}</p>
           </div>
         </CardContent>
         <CardFooter className="flex justify-end space-x-2">
@@ -195,17 +189,18 @@ export default function SettingsPage() {
                 variant="indigo-ghost"
                 onClick={() => {
                   setIsEditingProfile(false);
-                  setNewDisplayName(user?.displayName || '');
+                  setNewDisplayName(derivedUser.name); // Reset to current name
                 }}
                 disabled={isUpdatingProfile}
               >
                 Cancel
               </Button>
-              {/* Default variant will be used here, which is our indigo primary button */}
               <Button
                 onClick={handleProfileUpdate}
                 disabled={
-                  isUpdatingProfile || newDisplayName === user?.displayName
+                  isUpdatingProfile ||
+                  newDisplayName === derivedUser.name ||
+                  !newDisplayName.trim()
                 }
               >
                 {isUpdatingProfile ? 'Saving...' : 'Save Changes'}
@@ -227,15 +222,15 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle className="text-xl">Sign Out</CardTitle>
           <CardDescription className="text-gray-400">
-            End your current session and return to the homepage.
+            End your current session.
           </CardDescription>
         </CardHeader>
         <CardFooter className="flex justify-end">
           <Button
-            variant="outline" // Uses the gray outline variant
+            variant="outline"
             onClick={handleSignOut}
             disabled={isSigningOut}
-            className="w-full sm:w-auto" // Responsive width
+            className="w-full sm:w-auto"
           >
             {isSigningOut ? (
               'Signing Out...'
@@ -256,44 +251,34 @@ export default function SettingsPage() {
             <AlertTriangle className="mr-3 h-5 w-5" /> Danger Zone
           </CardTitle>
           <CardDescription className="text-gray-400">
-            Be careful! Actions in this zone are permanent and cannot be undone.
+            Permanent and irreversible actions.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-4 border border-red-700/50 rounded-lg bg-red-900/20">
             <h3 className="font-semibold text-red-400">Delete Your Account</h3>
             <p className="text-sm text-gray-300 mt-1">
-              Once you delete your account, all your data, integrations, and
-              configurations will be permanently erased. There is no going back.
-              Please be certain.
+              All your data will be permanently erased. This action cannot be
+              undone.
             </p>
           </div>
         </CardContent>
         <CardFooter className="flex justify-end">
-          <AlertDialog>
+          <AlertDialog onOpenChange={(open) => !open && setConfirmInput('')}>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" disabled={isDeletingAccount}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete My Account
+                <Trash2 className="mr-2 h-4 w-4" /> Delete My Account
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-gray-900 border-gray-700 text-gray-100 font-mono">
               <AlertDialogHeader>
                 <AlertDialogTitle className="text-2xl text-red-500 flex items-center">
-                  <AlertTriangle className="mr-3 h-6 w-6" />
-                  Account Self-Destruct Sequence Initiated!
+                  <AlertTriangle className="mr-3 h-6 w-6" /> Confirm Account
+                  Deletion
                 </AlertDialogTitle>
                 <AlertDialogDescription className="text-gray-400 pt-4">
-                  Woah there, code-slinger! Are you *absolutely* sure you want
-                  to yeet your account into the digital void? All your precious
-                  settings will be gone, like tears in rain... or that one
-                  semicolon you spent hours looking for.
-                  <br />
-                  <br />
-                  This action is{' '}
-                  <strong className="text-red-400">IRREVERSIBLE</strong>. To
-                  prove you&apos;re not just rage-quitting after a merge
-                  conflict, type &quot;
+                  Are you absolutely sure? This action is irreversible. To
+                  confirm, type &quot;
                   <strong className="text-green-400">delete me</strong>&quot;
                   below.
                 </AlertDialogDescription>
@@ -313,22 +298,19 @@ export default function SettingsPage() {
               </div>
               <AlertDialogFooter className="sm:justify-between">
                 <AlertDialogCancel
-                  variant="secondary" // Uses the new secondary variant
-                  onClick={() => setConfirmInput('')} // Clear input on cancel
+                  variant="secondary"
+                  onClick={() => setConfirmInput('')}
                 >
-                  Phew, Cancel!
+                  Cancel
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  variant="destructive" // Uses the destructive variant
-                  disabled={isConfirmDisabled || isDeletingAccount}
+                  variant="destructive"
+                  disabled={isConfirmDeleteDisabled || isDeletingAccount}
                   onClick={() => {
-                    if (!isConfirmDisabled) {
-                      handleDeleteAccount();
-                      // confirmInput will be cleared on error by handleDeleteAccount
-                    }
+                    if (!isConfirmDeleteDisabled) handleDeleteAccount();
                   }}
                 >
-                  {isDeletingAccount ? 'Deleting...' : 'Yes, Obliterate It!'}
+                  {isDeletingAccount ? 'Deleting...' : 'Yes, Delete It'}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

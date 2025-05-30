@@ -10,15 +10,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Settings, LogOut } from 'lucide-react';
 import Link from 'next/link'; // Import Link for navigation
-import { auth, signOut } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { signOut } from 'next-auth/react';
 
 const TopBar = ({ user }) => {
   const router = useRouter();
 
   // Placeholder function for sign out - replace with your actual sign out logic
   const handleSignOut = useCallback(async () => {
-    await signOut(auth);
+    signOut({ callbackUrl: '/' }); // Redirect to homepage after sign out
   }, []);
 
   if (!user) return null; // Or show nothing/login button
@@ -29,10 +29,7 @@ const TopBar = ({ user }) => {
         <DropdownMenuTrigger asChild>
           {/* The Avatar acts as the trigger */}
           <Avatar className="cursor-pointer h-9 w-9 border-2 border-gray-700 hover:border-indigo-400 transition-colors">
-            <AvatarImage
-              src={user.providerData[0]?.photoURL}
-              alt={user?.name || 'User Avatar'}
-            />
+            <AvatarImage src={user.image} alt={user?.name || 'User Avatar'} />
           </Avatar>
         </DropdownMenuTrigger>
 

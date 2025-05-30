@@ -4,6 +4,7 @@
 locals {
   region = "europe-west1"
 }
+
 # ------------------------------------------------------------------------------
 # Configure Terraform settings
 # ------------------------------------------------------------------------------
@@ -20,6 +21,11 @@ terraform {
     }
   }
 }
+
+# ------------------------------------------------------------------------------
+# Additional modules and resources
+# ------------------------------------------------------------------------------
+# Add documentation for modules and resources here
 
 # Generate a random integer
 resource "random_integer" "project_id" {
@@ -89,8 +95,13 @@ module "api" {
     "identitytoolkit.googleapis.com",
     "iap.googleapis.com",
     "secretmanager.googleapis.com",
-    "firebase.googleapis.com",
-    "firestore.googleapis.com",
+    "apigateway.googleapis.com",
+    "servicemanagement.googleapis.com",
+    "servicecontrol.googleapis.com",
+    "cloudfunctions.googleapis.com",
+    "cloudbuild.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "firestore.googleapis.com"
   ]
   depends_on = [module.prioritized_api]
 }
@@ -120,6 +131,17 @@ module "repository" {
   ]
 }
 
+module "firestore" {
+  source = "./modules/firestore"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
+
+  depends_on = [
+    module.api
+  ]
+}
+
 # ------------------------------------------------------------------------------
 # Module for managing service account for GitHub Actions
 # ------------------------------------------------------------------------------
@@ -135,12 +157,30 @@ module "service_account_gh" {
     "roles/artifactregistry.writer",
     "roles/iam.serviceAccountUser",
     "roles/cloudbuild.builds.editor",
+    "roles/cloudfunctions.developer"
   ]
 
   depends_on = [
     module.api
   ]
 }
+
+module "service_account_apigw" {
+  source = "./modules/service_account"
+
+  sa_id = "apigateway"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/run.invoker"
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
 
 # ------------------------------------------------------------------------------
 # Module for managing service account for frontend
@@ -239,48 +279,6 @@ module "cloudrun_front" {
         version   = "latest"
       }
     },
-    {
-      name = "FIREBASE_API_KEY",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_API_KEY"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_AUTH_DOMAIN",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_AUTH_DOMAIN"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_PROJECT_ID",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_PROJECT_ID"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_STORAGE_BUCKET",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_STORAGE_BUCKET"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_MESSAGING_SENDER_ID",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_MESSAGING_SENDER_ID"]
-        version   = "latest"
-      }
-    },
-    {
-      name = "FIREBASE_APP_ID",
-      secret_ref = {
-        secret_id = module.secret_manager.secrets_id["FIREBASE_APP_ID"]
-        version   = "latest"
-      }
-    },
   ]
 
   container_port = 3000
@@ -292,22 +290,55 @@ module "cloudrun_front" {
   ]
 }
 
-# ------------------------------------------------------------------------------
-# Module for deploying Firebase
-# ------------------------------------------------------------------------------
-module "firebase" {
-  source          = "./modules/firebase"
-  firestore_rules = ["firestore.rules"]
+module "function_bucket" {
+  source = "./modules/bucket"
 
+  name        = "reomir-function-bucket"
+  location    = local.region
   gcp_project = google_project.reomir.project_id
-  region      = local.region
-
-  depends_on = [
-    module.api,
-    module.secret_manager
-  ]
 }
 
+module "function_user" {
+  source = "./modules/functions"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
+
+  bucket_name   = module.function_bucket.name
+  bucket_object = "reomir-users.zip"
+
+  environment_variables = {
+    LOG_EXECUTION_ID = "true"
+  }
+
+  function_name = "reomir-users"
+  entry_point   = "handler"
+}
+
+module "api_gateway" {
+  source = "./modules/api_gateway"
+
+  gcp_project_id    = google_project.reomir.project_id
+  openapi_spec_path = "./swagger.yaml"
+
+
+  template_vars = {
+    CLOUDRUN_AGENT_URL     = module.cloudrun_agent.url
+    CLOUDFUN_USER_URL      = module.function_user.url
+    GOOGLE_OAUTH_CLIENT_ID = var.secrets["GOOGLE_CLIENT_ID"]
+  }
+
+  service_account_email = module.service_account_apigw.email
+
+  depends_on = [
+    module.cloudrun_agent,
+    module.cloudrun_front,
+    module.service_account_gh,
+    module.service_account_front,
+    module.wif
+  ]
+
+}
 
 output "project_name" {
   value = google_project.reomir.name
@@ -328,4 +359,9 @@ output "cloudrun_front_image" {
 
 output "cloudrun_agent_image" {
   value = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-agent:latest"
+}
+
+output "gateway_url" {
+  description = "The URL of the deployed API Gateway."
+  value       = module.api_gateway.url
 }

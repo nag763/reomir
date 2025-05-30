@@ -1,0 +1,50 @@
+name: Deploy Cloud Functions
+
+on:
+  push:
+    branches:
+      - "master"
+    paths:
+      - 'functions/**' # Only trigger on changes in the front directory
+
+env:
+  # --- GCP Cloud Functions Variables ---
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }} # Your GCP project ID
+  GCP_REGION: europe-west1 # Cloud Function region (must be a Cloud Functions supported region)
+  SOURCE_DIRECTORY: ./functions # Directory containing your Cloud Function source code
+
+jobs:
+  deploy_cloud_function:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        function: ["users"]
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Google Auth (Workload Identity Federation)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/gh-actions-pool/providers/github-provider
+          service_account: github-actions-deployer@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      # Install gcloud CLI components if not already present
+      # This is usually pre-installed on GitHub Actions runners, but good practice to ensure
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy Cloud Function
+        uses: "google-github-actions/deploy-cloud-functions@v3"
+        with:
+          name: reomir-${{ matrix.function }}
+          runtime: python313
+          region: ${{ env.GCP_REGION }}
+          project_id: ${{ env.GCP_PROJECT_ID }}
+          source_dir: ${{ env.SOURCE_DIRECTORY }}/${{ matrix.function }}
+          entry_point: handler

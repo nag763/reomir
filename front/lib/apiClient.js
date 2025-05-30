@@ -26,6 +26,8 @@ export async function callAuthenticatedApi(
 
   const config = {
     ...options, // Spread other options like method, body
+    // Replace body with JSON string if it exists
+    body: options.body ? JSON.stringify(options.body) : undefined,
     headers,
   };
 

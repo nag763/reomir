@@ -1,4 +1,4 @@
-// components/UserProfileProvider.jsx
+// components/UserProfileProvider.js
 'use client';
 
 import React, {
@@ -8,148 +8,160 @@ import React, {
   useState,
   useCallback,
 } from 'react';
-import { useSession } from 'next-auth/react';
-import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client from previous step
-import LoadingScreen from './LoadingScreen'; // Your global loading screen
+import { useSession, signOut } from 'next-auth/react';
+import { callAuthenticatedApi } from '@/lib/apiClient';
+import LoadingScreen from './LoadingScreen';
 import { useToast } from '@/hooks/use-toast';
-import { signOut } from 'next-auth/react';
 
-// Define the shape of your context
 const UserProfileContext = createContext({
-  session: null, // The next-auth session object
-  profile: null, // Custom application data for the user
-  isLoadingProfile: true, // Specific loading state for the profile
+  session: null,
+  profile: null,
+  isLoadingProfile: true,
   profileError: null,
-  updateProfile: async () => {}, // Function to update profile
-  deleteProfile: async () => {}, // Function to delete profile
-  refetchProfile: async () => {}, // Function to manually refetch profile
+  updateProfile: async () => {},
+  deleteProfile: async () => {},
+  refetchProfile: async () => {},
 });
 
 export const UserProfileProvider = ({ children }) => {
   const { data: session, status: sessionStatus } = useSession();
   const [profile, setProfile] = useState(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
-  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false); // For updating
+  const [isUpdatingInternal, setIsUpdatingInternal] = useState(false); // Internal state for update operation
   const [profileError, setProfileError] = useState(null);
-  const { toast } = useToast(); // Initialize toast
+  const { toast } = useToast();
 
   const fetchUserProfile = useCallback(async () => {
-    // Only fetch if session is authenticated and we have an idToken
     if (sessionStatus === 'authenticated' && session?.idToken) {
       setIsLoadingProfile(true);
       setProfileError(null);
       try {
-        console.log('Fetching user profile from /api/v1/users/self...');
         const data = await callAuthenticatedApi('users/self', {
           method: 'GET',
         });
         setProfile(data);
-        console.log('User profile data fetched:', data);
       } catch (error) {
         console.error('Failed to fetch user profile:', error);
         setProfileError(error.message || 'Failed to load profile');
-        setProfile(null); // Clear profile on error
+        setProfile(null);
       } finally {
         setIsLoadingProfile(false);
       }
     } else if (sessionStatus === 'unauthenticated') {
-      setProfile(null); // Clear profile if user logs out
+      setProfile(null);
       setProfileError(null);
       setIsLoadingProfile(false);
     } else if (sessionStatus === 'loading') {
-      setIsLoadingProfile(true); // Profile is loading if session is loading
+      setIsLoadingProfile(true);
     }
-  }, [sessionStatus, session?.idToken]); // Depend on sessionStatus and token availability
+  }, [sessionStatus, session?.idToken]);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]);
 
   const updateProfile = useCallback(
     async (payload, partial = false) => {
+      // Defaulting partial to true as PUT is common for updates
       if (sessionStatus !== 'authenticated' || !session?.idToken) {
         toast({
           title: 'Authentication Error',
           description: 'You must be signed in to update your profile.',
           variant: 'destructive',
         });
-        throw new Error('User not authenticated.'); // Or return null/false
+        throw new Error('User not authenticated.');
       }
-      setIsUpdatingProfile(true); // Set specific loading state for update
-      setProfileError(null); // Clear previous errors
-      try {
-        console.log('Updating user profile with payload:', payload);
-        // Your existing API call logic
-        const data = await callAuthenticatedApi('users/self', {
-          method: partial ? 'PUT' : 'POST', // Or always PUT if your backend expects it
-          body: JSON.stringify(payload), // callAuthenticatedApi already stringifies
-        });
-
+      if (isUpdatingInternal) {
         toast({
-          title: 'Profile Updated!',
-          description: 'Your profile information has been saved.',
-          variant: 'default', // Or use a "success" variant if you have one
+          title: 'Update in Progress',
+          description: 'An update is already in progress. Please wait.',
+          variant: 'default',
+        });
+        throw new Error('Update already in progress.');
+      }
+
+      setIsUpdatingInternal(true);
+      setProfileError(null);
+      try {
+        const data = await callAuthenticatedApi('users/self', {
+          method: partial ? 'PUT' : 'POST', // Ensure this matches your API (PUT for partial, POST for create/replace)
+          body: payload, // callAuthenticatedApi likely handles JSON.stringify if needed
         });
 
-        setProfile({ ...profile, ...data });
-
-        console.log('User profile updated and refetched:', data);
+        setProfile((prevProfile) => ({ ...prevProfile, ...data }));
+        toast({
+          title: 'Profile Updated',
+          description: 'Your profile information has been saved.',
+          variant: 'default', // Or 'success'
+        });
         return data;
       } catch (error) {
         console.error('Failed to update user profile:', error);
         const errorMessage =
           error.message || 'Failed to update profile. Please try again.';
-        setProfileError(errorMessage); // Set general profile error if needed
+        setProfileError(errorMessage);
         toast({
           title: 'Update Failed',
           description: errorMessage,
           variant: 'destructive',
         });
-        throw error; // Re-throw the error so calling components can handle it if they want
+        throw error;
       } finally {
-        setIsUpdatingProfile(false); // Reset specific loading state for update
+        setIsUpdatingInternal(false);
       }
     },
-    [sessionStatus, session?.idToken, profile, toast], // Added toast to dependencies
+    [sessionStatus, session?.idToken, toast, isUpdatingInternal],
   );
 
   const deleteProfile = useCallback(async () => {
     if (sessionStatus !== 'authenticated' || !session?.idToken) {
-      console.warn('Cannot delete profile: User not authenticated.');
-      return; // Or throw an error
+      toast({
+        title: 'Authentication Error',
+        description: 'You must be signed in to delete your profile.',
+        variant: 'destructive',
+      });
+      throw new Error('User not authenticated.');
     }
-    setIsLoadingProfile(true);
+    setIsLoadingProfile(true); // Use general loading as it will lead to sign out
     setProfileError(null);
     try {
-      console.log('Deleting user profile...');
-      await callAuthenticatedApi('users/self', {
-        method: 'DELETE',
+      await callAuthenticatedApi('users/self', { method: 'DELETE' });
+      toast({
+        title: 'Account Deleted',
+        description: 'Your account has been successfully deleted.',
+        variant: 'default',
       });
-      console.log('User profile deleted.');
-      await signOut({ callbackUrl: '/' });
+      await signOut({ callbackUrl: '/' }); // Redirect after successful deletion
     } catch (error) {
       console.error('Failed to delete user profile:', error);
-      setProfileError(error.message || 'Failed to delete profile');
-      throw error; // Re-throw the error
-    } finally {
-      setIsLoadingProfile(false);
+      const errorMessage =
+        error.message || 'Failed to delete profile. Please try again.';
+      setProfileError(errorMessage);
+      toast({
+        title: 'Deletion Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+      setIsLoadingProfile(false); // Reset loading if deletion failed before signout
+      throw error;
     }
-  }, [sessionStatus, session?.idToken]);
+    // No finally setIsLoadingProfile(false) here, as signOut should navigate away.
+  }, [sessionStatus, session?.idToken, toast]);
 
-  useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]); // Call fetchUserProfile when it changes (i.e., when dependencies change)
-
-  // Overall loading state considers both session and profile loading
-  const isLoadingGlobally = sessionStatus === 'loading' || isLoadingProfile;
+  const isLoadingGlobally =
+    sessionStatus === 'loading' ||
+    (sessionStatus === 'authenticated' && isLoadingProfile);
 
   const contextValue = {
     session,
     profile,
-    isLoadingProfile: isLoadingGlobally, // Use combined loading state
+    isLoadingProfile: isLoadingGlobally,
     profileError,
     updateProfile,
     deleteProfile,
-    refetchProfile: fetchUserProfile, // Expose refetch function
+    refetchProfile: fetchUserProfile,
   };
 
-  // If session is loading, or if profile is loading after session is authenticated, show loader
   if (isLoadingGlobally && sessionStatus !== 'unauthenticated') {
     return <LoadingScreen />;
   }
@@ -161,4 +173,10 @@ export const UserProfileProvider = ({ children }) => {
   );
 };
 
-export const useUserProfile = () => useContext(UserProfileContext);
+export const useUserProfile = () => {
+  const context = useContext(UserProfileContext);
+  if (context === undefined) {
+    throw new Error('useUserProfile must be used within a UserProfileProvider');
+  }
+  return context;
+};

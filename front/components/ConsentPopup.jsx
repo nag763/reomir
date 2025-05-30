@@ -41,7 +41,6 @@ export default function ConsentPopup() {
         setError('Could not load your profile settings. Please try again.');
         setIsOpen(true);
       } else if (!profile) {
-        // Show if profile doesn't exist OR cookieConsent is not 'true'
         console.log(
           "ConsentPopup: Profile missing or consent not 'true'. Opening popup.",
           profile,

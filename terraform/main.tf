@@ -4,6 +4,7 @@
 locals {
   region = "europe-west1"
 }
+
 # ------------------------------------------------------------------------------
 # Configure Terraform settings
 # ------------------------------------------------------------------------------
@@ -20,6 +21,11 @@ terraform {
     }
   }
 }
+
+# ------------------------------------------------------------------------------
+# Additional modules and resources
+# ------------------------------------------------------------------------------
+# Add documentation for modules and resources here
 
 # Generate a random integer
 resource "random_integer" "project_id" {

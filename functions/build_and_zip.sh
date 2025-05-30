@@ -125,7 +125,7 @@ perform_deploy() {
         echo "Running command: gcloud functions deploy \"$function_name\" \\"
         echo "  --gen2 \\"
         echo "  --runtime=\"$gcp_runtime\" \\"
-        echo "  --region=\"$gcp_region\" \\"
+        echo "  --region=\"$gcp_region\"     \\"
         echo "  --source=$dir_to_deploy \\"
         echo "  --entry-point=handler \\"
         echo "  --trigger-http \\" # Assuming HTTP trigger, add or modify as needed

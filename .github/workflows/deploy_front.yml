@@ -48,6 +48,7 @@ jobs:
 
           # Build with BuildKit enabled, passing secrets as build arguments
           docker build \
+            --build-arg NEXT_PUBLIC_API_GATEWAY_URL="${{ vars.NEXT_PUBLIC_API_GATEWAY_URL }}" \
             -t $IMAGE_URI .
 
           # Push the image

@@ -105,7 +105,7 @@ paths:
               type: integer
     post:
       summary: "Updates the current authenticated user's profile (e.g., consent, organization)"
-      operationId: "updateCurrentUserProfile"
+      operationId: "createsCurrentUserProfile"
       security:
         - google_id_token_auth: []
       x-google-backend:
@@ -118,6 +118,33 @@ paths:
           required: true
           schema:
             $ref: "#/definitions/UserProfileUpdateRequest"
+      responses:
+        "200":
+          description: "Profile updated successfully"
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Profile updated successfully."
+              # Optionally return the updated profile, similar to SuccessUserSelf
+              profile:
+                $ref: "#/responses/SuccessUserSelf/schema"
+        "400":
+          description: "Bad Request - Invalid input data"
+        "401":
+          $ref: "#/responses/UnauthorizedError"
+        "403":
+          $ref: "#/responses/ForbiddenError"
+        "500":
+          $ref: "#/responses/InternalServerError"
+    put:
+      summary: "Updates the current authenticated user's profile (e.g., consent, organization)"
+      operationId: "updateCurrentUserProfile"
+      security:
+        - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_USER_URL}" # Variable from Terraform
       responses:
         "200":
           description: "Profile updated successfully"

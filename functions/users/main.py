@@ -19,7 +19,7 @@ allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 # These headers will be used for preflight requests and actual responses.
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": allowed_origins,
-    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",  # Specify allowed methods
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",  # Specify allowed methods
     "Access-Control-Allow-Headers": "Content-Type, Authorization",  # Specify allowed headers
     "Access-Control-Max-Age": "3600",  # Cache preflight response for 1 hour
 }
@@ -200,6 +200,86 @@ def handler(req: request):
                 200,
                 CORS_HEADERS,
             )  # 200 for idempotent set, or 201 if strictly creation
+        case "PUT":
+            # --- Authentication (same logic as GET to identify the user) ---
+            auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")
+            if not auth_info_header:
+                return (
+                    {"error": "Authentication information not found."},
+                    401,
+                    CORS_HEADERS,
+                )
+
+            try:
+                auth_info_decoded = base64.b64decode(auth_info_header + "==").decode(
+                    "utf-8"
+                )
+                auth_info_json = json.loads(auth_info_decoded)
+                user_id = auth_info_json.get("sub")  # Standard claim for Google User ID
+
+                if not user_id:
+                    return (
+                        {"error": "User ID not found in authentication information."},
+                        400,
+                        CORS_HEADERS,
+                    )
+            except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
+                logging.error(
+                    "Error decoding authentication information for POST: %s", e
+                )
+                return (
+                    {"error": "Invalid authentication information format."},
+                    400,
+                    CORS_HEADERS,
+                )
+
+            # --- Get Data from Request Body ---
+            try:
+                # Ensure request has JSON content type, Flask's get_json handles this check.
+                # Setting force=True can bypass content-type check but is generally not recommended.
+                request_data = req.get_json(silent=False)
+                if (
+                    request_data is None
+                ):  # Should not happen if silent=False and content-type is wrong
+                    return (
+                        {
+                            "error": "No JSON payload provided or incorrect Content-Type header."
+                        },
+                        400,
+                        CORS_HEADERS,
+                    )
+            except (
+                Exception
+            ) as e:  # Catches werkzeug.exceptions.BadRequest for malformed JSON
+                logging.error("Error parsing JSON body for PUT: %s", e)
+                return ({"error": "Invalid JSON payload provided."}, 400, CORS_HEADERS)
+
+            # --- Validate required fields (based on your frontend logic) ---
+            try:
+                user_doc_ref = db.collection("users").document(user_id)
+
+                user_doc_ref.update({**request_data})
+
+                updated_data = user_doc_ref.get().to_dict()
+
+                logging.info(
+                    "User document for %s updated successfully via PUT.", user_id
+                )
+
+            except Exception as e:
+                logging.error("Firestore error during POST for user %s: %s", user_id, e)
+                return (
+                    {"error": "An error occurred while saving user data."},
+                    500,
+                    CORS_HEADERS,
+                )
+            # Return the newly created/updated data or a success message
+            # It's often good practice to return the resource state after creation/update
+            return (
+                updated_data,
+                200,
+                CORS_HEADERS,
+            )
         case "DELETE":
             # --- Authentication (same logic as GET/POST) ---
             auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")

@@ -11,7 +11,6 @@ import React, {
 import { useSession } from 'next-auth/react';
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client from previous step
 import LoadingScreen from './LoadingScreen'; // Your global loading screen
-import { signOut } from 'next-auth/react';
 
 // Define the shape of your context
 const UserProfileContext = createContext({
@@ -59,11 +58,11 @@ export const UserProfileProvider = ({ children }) => {
   }, [sessionStatus, session?.idToken]); // Depend on sessionStatus and token availability
 
   const updateProfile = useCallback(
-    async (payload) => {
+    async (payload, partial = false) => {
       try {
         console.log('Updating user profile with payload:', payload);
         const data = await callAuthenticatedApi('users/self', {
-          method: 'POST', // Assuming POST is used for updates
+          method: partial ? 'PUT' : 'POST', // Assuming POST is used for updates
           body: JSON.stringify(payload),
         });
         fetchUserProfile();
@@ -78,35 +77,30 @@ export const UserProfileProvider = ({ children }) => {
     [sessionStatus, session?.idToken, fetchUserProfile],
   ); // Depend on sessionStatus and token availability
 
-
-  const deleteProfile = useCallback(
-    async () => {
-        
-      if (sessionStatus !== 'authenticated' || !session?.idToken) {
-        console.warn('Cannot delete profile: User not authenticated.');
-        return; // Or throw an error
-      }
-      setIsLoadingProfile(true);
-      setProfileError(null);
-      try {
-        console.log('Deleting user profile...');
-        await callAuthenticatedApi('users/self', {
-          method: 'DELETE',
-        });
-        setProfile(null); // Clear profile state
-        console.log('User profile deleted.');
-        // Optionally, trigger a sign out or redirect the user
-        await signOut({ callbackUrl: '/' });
-      } catch (error) {
-        console.error('Failed to delete user profile:', error);
-        setProfileError(error.message || 'Failed to delete profile');
-        throw error; // Re-throw the error
-      } finally {
-        setIsLoadingProfile(false);
-      }
-
-    }, [sessionStatus, session?.idToken]
-  )
+  const deleteProfile = useCallback(async () => {
+    if (sessionStatus !== 'authenticated' || !session?.idToken) {
+      console.warn('Cannot delete profile: User not authenticated.');
+      return; // Or throw an error
+    }
+    setIsLoadingProfile(true);
+    setProfileError(null);
+    try {
+      console.log('Deleting user profile...');
+      await callAuthenticatedApi('users/self', {
+        method: 'DELETE',
+      });
+      setProfile(null); // Clear profile state
+      console.log('User profile deleted.');
+      // Optionally, trigger a sign out or redirect the user
+      await signOut({ callbackUrl: '/' });
+    } catch (error) {
+      console.error('Failed to delete user profile:', error);
+      setProfileError(error.message || 'Failed to delete profile');
+      throw error; // Re-throw the error
+    } finally {
+      setIsLoadingProfile(false);
+    }
+  }, [sessionStatus, session?.idToken]);
 
   useEffect(() => {
     fetchUserProfile();

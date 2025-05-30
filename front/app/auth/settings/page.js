@@ -32,7 +32,7 @@ import { signOut, useSession } from 'next-auth/react';
 export default function SettingsPage() {
   const [confirmInput, setConfirmInput] = useState('');
 
-  const { deleteProfile } = useUserProfile();
+  const { profile, updateProfile, deleteProfile } = useUserProfile();
 
   const isConfirmDisabled = confirmInput !== 'delete me';
 
@@ -41,7 +41,9 @@ export default function SettingsPage() {
 
   // States for profile editing
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [newDisplayName, setNewDisplayName] = useState('');
+  const [newDisplayName, setNewDisplayName] = useState(
+    profile.displayName || '',
+  );
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
   // State for feedback messages (e.g., success/error)
@@ -54,7 +56,7 @@ export default function SettingsPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const user = {
-    name: session.user?.name || 'User',
+    name: profile.displayName || 'User',
     email: session.user?.email || '',
     image: session.user?.image || null,
   };
@@ -75,7 +77,7 @@ export default function SettingsPage() {
     setIsUpdatingProfile(true);
     setFeedback({ message: '', type: '' });
     try {
-      await updateProfile(auth.currentUser, { displayName: newDisplayName });
+      await updateProfile({ displayName: newDisplayName }, true);
       setFeedback({
         message: 'Profile updated successfully!',
         type: 'success',
@@ -172,7 +174,9 @@ export default function SettingsPage() {
               <Button
                 onClick={handleProfileUpdate}
                 disabled={
-                  isUpdatingProfile || newDisplayName === user?.displayName
+                  isUpdatingProfile ||
+                  newDisplayName === profile.displayName ||
+                  !newDisplayName
                 }
               >
                 {isUpdatingProfile ? 'Saving...' : 'Save Changes'}

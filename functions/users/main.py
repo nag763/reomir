@@ -19,7 +19,7 @@ allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 # These headers will be used for preflight requests and actual responses.
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": allowed_origins,
-    "Access-Control-Allow-Methods": "GET, OPTIONS",  # Specify allowed methods
+    "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",  # Specify allowed methods
     "Access-Control-Allow-Headers": "Content-Type, Authorization",  # Specify allowed headers
     "Access-Control-Max-Age": "3600",  # Cache preflight response for 1 hour
 }
@@ -200,5 +200,76 @@ def handler(req: request):
                 200,
                 CORS_HEADERS,
             )  # 200 for idempotent set, or 201 if strictly creation
+        case "DELETE":
+            # --- Authentication (same logic as GET/POST) ---
+            auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")
+            if not auth_info_header:
+                return (
+                    {"error": "Authentication information not found."},
+                    401,
+                    CORS_HEADERS,
+                )
+
+            try:
+                auth_info_decoded = base64.b64decode(auth_info_header + "==").decode(
+                    "utf-8"
+                )
+                auth_info_json = json.loads(auth_info_decoded)
+                user_id = auth_info_json.get("sub")
+                if not user_id:
+                    return (
+                        {"error": "User ID not found in authentication information."},
+                        400,
+                        CORS_HEADERS,
+                    )
+            except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
+                logging.error(
+                    "Error decoding authentication information for DELETE: %s", e
+                )
+                return (
+                    {"error": "Invalid authentication information format."},
+                    400,
+                    CORS_HEADERS,
+                )
+
+            # --- Delete Firestore User Document ONLY ---
+            # Note: This does not recursively delete subcollections.
+            # For full cleanup of subcollections, you'd need a more complex solution.
+            try:
+                user_doc_ref = db.collection("users").document(user_id)
+                doc_snapshot = user_doc_ref.get()  # Check if exists before deleting
+
+                if doc_snapshot.exists:
+                    user_doc_ref.delete()
+                    logging.info("Firestore document for user %s deleted.", user_id)
+                    return (
+                        {
+                            "message": f"User data for {user_id} deleted successfully from Firestore."
+                        },
+                        200,
+                        CORS_HEADERS,
+                    )
+                else:
+                    logging.info(
+                        "No Firestore document to delete for user %s (already deleted or never existed).",
+                        user_id,
+                    )
+                    return (
+                        {"message": "No user data found to delete for this user."},
+                        204,
+                        CORS_HEADERS,
+                    )  # 204 No Content
+            except Exception as e:
+                logging.error(
+                    "Error deleting Firestore document for user %s: %s", user_id, e
+                )
+                return (
+                    {
+                        "error": "An error occurred while deleting user data from Firestore."
+                    },
+                    500,
+                    CORS_HEADERS,
+                )
+
         case _:
             return ("Method not allowed", 405)

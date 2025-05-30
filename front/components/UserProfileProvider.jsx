@@ -11,6 +11,7 @@ import React, {
 import { useSession } from 'next-auth/react';
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client from previous step
 import LoadingScreen from './LoadingScreen'; // Your global loading screen
+import { signOut } from 'next-auth/react';
 
 // Define the shape of your context
 const UserProfileContext = createContext({
@@ -19,6 +20,7 @@ const UserProfileContext = createContext({
   isLoadingProfile: true, // Specific loading state for the profile
   profileError: null,
   updateProfile: async () => {}, // Function to update profile
+  deleteProfile: async () => {}, // Function to delete profile
   refetchProfile: async () => {}, // Function to manually refetch profile
 });
 
@@ -76,6 +78,36 @@ export const UserProfileProvider = ({ children }) => {
     [sessionStatus, session?.idToken, fetchUserProfile],
   ); // Depend on sessionStatus and token availability
 
+
+  const deleteProfile = useCallback(
+    async () => {
+        
+      if (sessionStatus !== 'authenticated' || !session?.idToken) {
+        console.warn('Cannot delete profile: User not authenticated.');
+        return; // Or throw an error
+      }
+      setIsLoadingProfile(true);
+      setProfileError(null);
+      try {
+        console.log('Deleting user profile...');
+        await callAuthenticatedApi('users/self', {
+          method: 'DELETE',
+        });
+        setProfile(null); // Clear profile state
+        console.log('User profile deleted.');
+        // Optionally, trigger a sign out or redirect the user
+        await signOut({ callbackUrl: '/' });
+      } catch (error) {
+        console.error('Failed to delete user profile:', error);
+        setProfileError(error.message || 'Failed to delete profile');
+        throw error; // Re-throw the error
+      } finally {
+        setIsLoadingProfile(false);
+      }
+
+    }, [sessionStatus, session?.idToken]
+  )
+
   useEffect(() => {
     fetchUserProfile();
   }, [fetchUserProfile]); // Call fetchUserProfile when it changes (i.e., when dependencies change)
@@ -89,6 +121,7 @@ export const UserProfileProvider = ({ children }) => {
     isLoadingProfile: isLoadingGlobally, // Use combined loading state
     profileError,
     updateProfile,
+    deleteProfile,
     refetchProfile: fetchUserProfile, // Expose refetch function
   };
 

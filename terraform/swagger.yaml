@@ -138,7 +138,33 @@ paths:
           $ref: "#/responses/ForbiddenError"
         "500":
           $ref: "#/responses/InternalServerError"
-
+    delete:
+      summary: "Delete the current authenticated user's profile"
+      operationId: "deleteCurrentUserProfile"
+      security:
+        - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_USER_URL}" # Variable from Terraform
+      responses:
+        "200":
+          description: "Profile deleted successfully"
+          schema:
+            type: object
+            properties:
+              message:
+                type: string
+                example: "Profile deleted successfully."
+              # Optionally return the updated profile, similar to SuccessUserSelf
+              profile:
+                $ref: "#/responses/SuccessUserSelf/schema"
+        "400":
+          description: "Bad Request - Invalid input data"
+        "401":
+          $ref: "#/responses/UnauthorizedError"
+        "403":
+          $ref: "#/responses/ForbiddenError"
+        "500":
+          $ref: "#/responses/InternalServerError"
     options: 
       summary: "CORS preflight for users endpoint"
       operationId: "optionsUsers"

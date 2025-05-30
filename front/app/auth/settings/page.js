@@ -26,11 +26,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react'; // Added LogOut
 import { useRouter } from 'next/navigation';
-
+import { useUserProfile } from '@/components/UserProfileProvider';
 import { signOut, useSession } from 'next-auth/react';
 
 export default function SettingsPage() {
   const [confirmInput, setConfirmInput] = useState('');
+
+  const { deleteProfile } = useUserProfile();
+
   const isConfirmDisabled = confirmInput !== 'delete me';
 
   const router = useRouter();
@@ -58,29 +61,8 @@ export default function SettingsPage() {
 
   const handleDeleteAccount = async () => {
     setIsDeletingAccount(true);
-    setFeedback({ message: '', type: '' });
-    try {
-      if (auth.currentUser) {
-        await deleteUser(auth.currentUser);
-        router.push('/'); // Redirect to home/login after deletion
-      }
-    } catch (error) {
-      if (error.code === 'auth/requires-recent-login') {
-        setFeedback({
-          message:
-            'This action requires a recent login. Please sign out and sign back in to delete your account.',
-          type: 'error',
-        });
-      } else {
-        setFeedback({
-          message: `Error deleting account: ${error.message}`,
-          type: 'error',
-        });
-      }
-      setConfirmInput(''); // Clear input on error
-    } finally {
-      setIsDeletingAccount(false);
-    }
+    await deleteProfile();
+    signOut({ callbackUrl: '/' });
   };
 
   const handleProfileUpdate = async () => {

@@ -11,6 +11,7 @@ import React, {
 import { useSession } from 'next-auth/react';
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client from previous step
 import LoadingScreen from './LoadingScreen'; // Your global loading screen
+import { useToast } from '@/hooks/use-toast';
 
 // Define the shape of your context
 const UserProfileContext = createContext({
@@ -27,7 +28,9 @@ export const UserProfileProvider = ({ children }) => {
   const { data: session, status: sessionStatus } = useSession();
   const [profile, setProfile] = useState(null);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isUpdatingProfile, setIsUpdatingProfile] = useState(false); // For updating
   const [profileError, setProfileError] = useState(null);
+  const { toast } = useToast(); // Initialize toast
 
   const fetchUserProfile = useCallback(async () => {
     // Only fetch if session is authenticated and we have an idToken
@@ -59,23 +62,51 @@ export const UserProfileProvider = ({ children }) => {
 
   const updateProfile = useCallback(
     async (payload, partial = false) => {
+      if (sessionStatus !== 'authenticated' || !session?.idToken) {
+        toast({
+          title: 'Authentication Error',
+          description: 'You must be signed in to update your profile.',
+          variant: 'destructive',
+        });
+        throw new Error('User not authenticated.'); // Or return null/false
+      }
+      setIsUpdatingProfile(true); // Set specific loading state for update
+      setProfileError(null); // Clear previous errors
       try {
         console.log('Updating user profile with payload:', payload);
+        // Your existing API call logic
         const data = await callAuthenticatedApi('users/self', {
-          method: partial ? 'PUT' : 'POST', // Assuming POST is used for updates
-          body: JSON.stringify(payload),
+          method: partial ? 'PUT' : 'POST', // Or always PUT if your backend expects it
+          body: JSON.stringify(payload), // callAuthenticatedApi already stringifies
         });
-        fetchUserProfile();
-        console.log('User profile updated:', data);
+
+        toast({
+          title: 'Profile Updated!',
+          description: 'Your profile information has been saved.',
+          variant: 'default', // Or use a "success" variant if you have one
+        });
+
+        setProfile({ ...profile, ...data });
+
+        console.log('User profile updated and refetched:', data);
         return data;
       } catch (error) {
         console.error('Failed to update user profile:', error);
-        setProfileError(error.message || 'Failed to update profile');
-        throw error; // Re-throw the error so calling components can handle it
+        const errorMessage =
+          error.message || 'Failed to update profile. Please try again.';
+        setProfileError(errorMessage); // Set general profile error if needed
+        toast({
+          title: 'Update Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        throw error; // Re-throw the error so calling components can handle it if they want
+      } finally {
+        setIsUpdatingProfile(false); // Reset specific loading state for update
       }
     },
-    [sessionStatus, session?.idToken, fetchUserProfile],
-  ); // Depend on sessionStatus and token availability
+    [sessionStatus, session?.idToken, profile, toast], // Added toast to dependencies
+  );
 
   const deleteProfile = useCallback(async () => {
     if (sessionStatus !== 'authenticated' || !session?.idToken) {

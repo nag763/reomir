@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +39,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
 
+  const inputRef = useRef(null);
+
   // States for profile editing
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState(
@@ -54,6 +56,13 @@ export default function SettingsPage() {
 
   // State for sign out
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  useEffect(() => {
+    if (isEditingProfile && inputRef.current) {
+      // console.log('Attempting to focus input:', inputRef.current); // For debugging
+      inputRef.current.focus();
+    }
+  }, [isEditingProfile]);
 
   const user = {
     name: profile.displayName || 'User',
@@ -143,6 +152,7 @@ export default function SettingsPage() {
             <Label className="text-gray-500">Name:</Label>
             {isEditingProfile ? (
               <Input
+                ref={inputRef}
                 className="mt-1 bg-gray-700 border-gray-600 text-lg"
                 value={newDisplayName}
                 onChange={(e) => setNewDisplayName(e.target.value)}
@@ -164,7 +174,7 @@ export default function SettingsPage() {
                 variant="indigo-ghost"
                 onClick={() => {
                   setIsEditingProfile(false);
-                  setNewDisplayName(user?.displayName || '');
+                  setNewDisplayName(profile.displayName || '');
                 }}
                 disabled={isUpdatingProfile}
               >
@@ -285,7 +295,7 @@ export default function SettingsPage() {
               <AlertDialogFooter className="sm:justify-between">
                 <AlertDialogCancel
                   variant="secondary" // Uses the new secondary variant
-                  onClick={() => setConfirmInput('')} // Clear input on cancel
+                  onClick={() => setConfirmInput(porifle.displayName)} // Clear input on cancel
                 >
                   Phew, Cancel!
                 </AlertDialogCancel>

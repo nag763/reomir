@@ -1,355 +1,259 @@
-import os
 import base64
 import json
 import logging
+import os
 
 import functions_framework
 from flask import request
 from google.cloud import firestore
 
+
 # Initialize Firestore client
-# This will use Application Default Credentials
-# Ensure the Cloud Function's service account has Firestore permissions
 db = firestore.Client()
 
-# Get allowed origins from environment variable, default to all (*)
-allowed_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
+# Configuration
+ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
+X_APIGATEWAY_USERINFO_HEADER = "X-Apigateway-Api-Userinfo"
+USER_ID_CLAIM = "sub"  # Standard OpenID Connect claim for subject (user ID)
 
-# Define global CORS headers
-# These headers will be used for preflight requests and actual responses.
+# Global CORS headers
 CORS_HEADERS = {
-    "Access-Control-Allow-Origin": allowed_origins,
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",  # Specify allowed methods
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",  # Specify allowed headers
-    "Access-Control-Max-Age": "3600",  # Cache preflight response for 1 hour
+    "Access-Control-Allow-Origin": ALLOWED_ORIGINS,
+    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Max-Age": "3600",
 }
+
+# --- Helper Functions (still useful to reduce repetition) ---
+
+
+def _get_auth_user_info(req: request):
+    """
+    Extracts, decodes, and validates user authentication info from request headers.
+
+    Returns:
+        tuple: (auth_info_json, None) on success, or (None, error_response_tuple) on failure.
+               The error_response_tuple is (error_dict, status_code, headers).
+    """
+    auth_info_header = req.headers.get(X_APIGATEWAY_USERINFO_HEADER)
+    if not auth_info_header:
+        return None, (
+            {"error": "Authentication information not found."},
+            401,
+            CORS_HEADERS,
+        )
+
+    try:
+        # Add correct padding for base64 decoding if missing
+        auth_info_header_padded = auth_info_header + "=" * (-len(auth_info_header) % 4)
+        auth_info_decoded = base64.b64decode(auth_info_header_padded).decode("utf-8")
+        auth_info_json = json.loads(auth_info_decoded)
+
+        if not auth_info_json.get(USER_ID_CLAIM):
+            msg = f"User ID claim ('{USER_ID_CLAIM}') not found in authentication information."
+            return None, ({"error": msg}, 400, CORS_HEADERS)
+        return auth_info_json, None
+    except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
+        logging.error("Error decoding authentication information: %s", e)
+        return None, (
+            {"error": "Invalid authentication information format."},
+            400,
+            CORS_HEADERS,
+        )
+
+
+def _get_request_data(req: request):
+    """
+    Parses JSON data from the request body.
+
+    Returns:
+        tuple: (request_data_json, None) on success, or (None, error_response_tuple) on failure.
+    """
+    try:
+        # get_json raises BadRequest (400) if not JSON, malformed, or wrong Content-Type.
+        request_data = req.get_json(silent=False)
+        if request_data is None:  # Handles cases like an empty body or JSON 'null'
+            return None, (
+                {"error": "No JSON payload provided or payload is null."},
+                400,
+                CORS_HEADERS,
+            )
+        return request_data, None
+    except Exception as e:  # Catches BadRequest from get_json
+        logging.error("Error parsing JSON body: %s", e)
+        return None, (
+            {"error": "Invalid JSON payload or Content-Type."},
+            400,
+            CORS_HEADERS,
+        )
+
+
+# --- Main Cloud Function Handler ---
 
 
 @functions_framework.http
 def handler(req: request):
-    # Set CORS headers for the preflight request (OPTIONS)
+    """Handles HTTP requests for user data management in Firestore."""
+
+    if req.method == "OPTIONS":
+        return "", 204, CORS_HEADERS
+
+    # --- Authentication (common for applicable methods) ---
+    # This is performed once for methods that require it.
+    auth_info, error_response = _get_auth_user_info(req)
+    if error_response:
+        # This error_response already includes (dict, status_code, CORS_HEADERS)
+        return error_response
+
+    # We can be sure auth_info is not None here and USER_ID_CLAIM exists.
+    user_id = auth_info[USER_ID_CLAIM]
+
+    # --- Method-specific logic ---
     match req.method:
-        case "OPTIONS":
-            headers = CORS_HEADERS
-            return ("", 204, headers)
         case "GET":
-            # --- Authentication ---
-            # API Gateway is expected to pass authenticated user info in this header
-            auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")
-
-            if not auth_info_header:
-                return (
-                    {"error": "Authentication information not found."},
-                    401,  # Unauthorized
-                    CORS_HEADERS,
-                )
-
-            try:
-                # Decode the base64 string
-                auth_info_decoded = base64.b64decode(auth_info_header + "==").decode(
-                    "utf-8"
-                )
-                # Parse the JSON string
-                auth_info_json = json.loads(auth_info_decoded)
-                # Extract the user ID (Google ID tokens usually use 'id' or 'sub' for subject/user ID)
-                # For Google ID tokens validated by API Gateway, 'id' and 'email' are typical.
-                user_id = auth_info_json.get("sub")
-
-                if not user_id:
-                    return (
-                        {"error": "User ID not found in authentication information."},
-                        400,  # Bad Request
-                        CORS_HEADERS,
-                    )
-            except (TypeError, ValueError, AttributeError) as e:
-                logging.error("Error decoding authentication information: %s", e)
-                return (
-                    {"error": "Invalid authentication information format."},
-                    400,  # Bad Request
-                    CORS_HEADERS,
-                )
-
-            # --- Firestore Check ---
             try:
                 user_doc_ref = db.collection("users").document(user_id)
                 user_doc = user_doc_ref.get()
 
                 if user_doc.exists:
-                    return (user_doc.to_dict(), 200, CORS_HEADERS)
+                    return user_doc.to_dict(), 200, CORS_HEADERS
                 else:
                     # User document does not exist
-                    # A 204 response MUST NOT include a message-body
-                    return ("", 204, CORS_HEADERS)
-
+                    return "", 204, CORS_HEADERS  # No content
             except Exception as e:
-                logging.error("Firestore error: %s", e)
+                logging.error("Firestore GET error for user %s: %s", user_id, e)
                 return (
-                    {"error": "An error occurred while checking user data."},
-                    500,  # Internal Server Error
+                    {"error": "An error occurred while retrieving user data."},
+                    500,
                     CORS_HEADERS,
                 )
+
         case "POST":
-            # --- Authentication (same logic as GET to identify the user) ---
-            auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")
-            if not auth_info_header:
-                return (
-                    {"error": "Authentication information not found."},
-                    401,
-                    CORS_HEADERS,
-                )
+            request_data, error_response = _get_request_data(req)
+            if error_response:
+                return error_response
 
-            try:
-                auth_info_decoded = base64.b64decode(auth_info_header + "==").decode(
-                    "utf-8"
-                )
-                auth_info_json = json.loads(auth_info_decoded)
-                user_id = auth_info_json.get("sub")  # Standard claim for Google User ID
-
-                if not user_id:
-                    return (
-                        {"error": "User ID not found in authentication information."},
-                        400,
-                        CORS_HEADERS,
-                    )
-            except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
-                logging.error(
-                    "Error decoding authentication information for POST: %s", e
-                )
-                return (
-                    {"error": "Invalid authentication information format."},
-                    400,
-                    CORS_HEADERS,
-                )
-
-            # --- Get Data from Request Body ---
-            try:
-                # Ensure request has JSON content type, Flask's get_json handles this check.
-                # Setting force=True can bypass content-type check but is generally not recommended.
-                request_data = req.get_json(silent=False)
-                if (
-                    request_data is None
-                ):  # Should not happen if silent=False and content-type is wrong
-                    return (
-                        {
-                            "error": "No JSON payload provided or incorrect Content-Type header."
-                        },
-                        400,
-                        CORS_HEADERS,
-                    )
-            except (
-                Exception
-            ) as e:  # Catches werkzeug.exceptions.BadRequest for malformed JSON
-                logging.error("Error parsing JSON body for POST: %s", e)
-                return ({"error": "Invalid JSON payload provided."}, 400, CORS_HEADERS)
-
-            # --- Validate required fields (based on your frontend logic) ---
-            # Example: Your frontend sends 'cookieConsent' and optionally 'organizationName'
-            if (
-                "cookieConsent" not in request_data
-                or request_data["cookieConsent"] != "true"
+            # Validate specific fields required by POST
+            if not (
+                isinstance(request_data, dict)
+                and request_data.get("cookieConsent") == "true"
             ):
-                # This validation depends on what your ConsentPopup guarantees to send.
-                # If only cookieConsent='true' means "valid", this check is important.
-                # If other fields are always sent, adjust validation.
-                # For the use case of ConsentPopup, cookieConsent is mandatory.
                 return (
-                    {"error": "'cookieConsent' must be present and set to 'true'."},
+                    {
+                        "error": "'cookieConsent' field must be present and set to 'true'."
+                    },
                     400,
                     CORS_HEADERS,
                 )
 
-            # --- Firestore Operation: Create/Update User Document ---
             try:
                 user_doc_ref = db.collection("users").document(user_id)
-
                 data_to_store = {
-                    "uid": user_id,  # Ensure uid is stored, matching the document ID
-                    "email": auth_info_json.get("email"),  # From validated token
-                    "displayName": auth_info_json.get(
-                        "name"
-                    ),  # From validated token (Google calls it 'name')
+                    "uid": user_id,
+                    "email": auth_info.get("email"),
+                    "displayName": auth_info.get("name"),  # Google ID token uses 'name'
                     **request_data,
                 }
+                # Remove any keys with None values that originated from auth_info
+                data_to_store_cleaned = {
+                    k: v for k, v in data_to_store.items() if v is not None
+                }
 
-                # Clean up None values from auth_info_json if you prefer not to store them
-                if data_to_store["email"] is None:
-                    del data_to_store["email"]
-                if data_to_store["displayName"] is None:
-                    del data_to_store["displayName"]
-
-                # Using set with merge=True will create the document if it doesn't exist,
-                # or update/merge fields if it already exists.
-                # This is suitable for creating the initial profile or updating it.
-                user_doc_ref.set(data_to_store, merge=True)
-
-                logging.info(
-                    f"User document for {user_id} created/updated successfully via POST."
-                )
-
+                user_doc_ref.set(data_to_store_cleaned, merge=True)
+                logging.info("User document for %s created/updated via POST.", user_id)
+                return (
+                    data_to_store_cleaned,
+                    200,
+                    CORS_HEADERS,
+                )  # 200 for idempotent set/merge
             except Exception as e:
-                logging.error(f"Firestore error during POST for user {user_id}: {e}")
+                logging.error("Firestore POST error for user %s: %s", user_id, e)
                 return (
                     {"error": "An error occurred while saving user data."},
                     500,
                     CORS_HEADERS,
                 )
-            # Return the newly created/updated data or a success message
-            # It's often good practice to return the resource state after creation/update
-            return (
-                data_to_store,
-                200,
-                CORS_HEADERS,
-            )  # 200 for idempotent set, or 201 if strictly creation
+
         case "PUT":
-            # --- Authentication (same logic as GET to identify the user) ---
-            auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")
-            if not auth_info_header:
-                return (
-                    {"error": "Authentication information not found."},
-                    401,
-                    CORS_HEADERS,
-                )
+            request_data, error_response = _get_request_data(req)
+            if error_response:
+                return error_response
 
-            try:
-                auth_info_decoded = base64.b64decode(auth_info_header + "==").decode(
-                    "utf-8"
-                )
-                auth_info_json = json.loads(auth_info_decoded)
-                user_id = auth_info_json.get("sub")  # Standard claim for Google User ID
-
-                if not user_id:
-                    return (
-                        {"error": "User ID not found in authentication information."},
-                        400,
-                        CORS_HEADERS,
-                    )
-            except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
-                logging.error(
-                    "Error decoding authentication information for POST: %s", e
-                )
+            if (
+                not isinstance(request_data, dict) or not request_data
+            ):  # Must be a non-empty dict
                 return (
-                    {"error": "Invalid authentication information format."},
+                    {"error": "Request body must be a non-empty JSON object for PUT."},
                     400,
                     CORS_HEADERS,
                 )
 
-            # --- Get Data from Request Body ---
-            try:
-                # Ensure request has JSON content type, Flask's get_json handles this check.
-                # Setting force=True can bypass content-type check but is generally not recommended.
-                request_data = req.get_json(silent=False)
-                if (
-                    request_data is None
-                ):  # Should not happen if silent=False and content-type is wrong
-                    return (
-                        {
-                            "error": "No JSON payload provided or incorrect Content-Type header."
-                        },
-                        400,
-                        CORS_HEADERS,
-                    )
-            except (
-                Exception
-            ) as e:  # Catches werkzeug.exceptions.BadRequest for malformed JSON
-                logging.error("Error parsing JSON body for PUT: %s", e)
-                return ({"error": "Invalid JSON payload provided."}, 400, CORS_HEADERS)
-
-            # --- Validate required fields (based on your frontend logic) ---
             try:
                 user_doc_ref = db.collection("users").document(user_id)
+                user_doc_ref.update(
+                    request_data
+                )  # Updates fields; fails if doc doesn't exist.
 
-                user_doc_ref.update({**request_data})
+                updated_doc = user_doc_ref.get()  # Fetch the updated document
+                if (
+                    not updated_doc.exists
+                ):  # Should ideally always exist if update() succeeded.
+                    logging.error(
+                        "Firestore PUT error: Document %s not found after presumed update.",
+                        user_id,
+                    )
+                    return (
+                        {"error": "Failed to retrieve document after update."},
+                        500,
+                        CORS_HEADERS,
+                    )
 
-                updated_data = user_doc_ref.get().to_dict()
-
-                logging.info(
-                    "User document for %s updated successfully via PUT.", user_id
+                logging.info("User document for %s updated via PUT.", user_id)
+                return updated_doc.to_dict(), 200, CORS_HEADERS
+            except firestore.exceptions.NotFound:
+                logging.warning(
+                    "Firestore PUT: Document %s not found for update.", user_id
                 )
-
-            except Exception as e:
-                logging.error("Firestore error during POST for user %s: %s", user_id, e)
                 return (
-                    {"error": "An error occurred while saving user data."},
+                    {"error": f"User document {user_id} not found to update."},
+                    404,
+                    CORS_HEADERS,
+                )
+            except Exception as e:
+                logging.error("Firestore PUT error for user %s: %s", user_id, e)
+                return (
+                    {"error": "An error occurred while updating user data."},
                     500,
                     CORS_HEADERS,
                 )
-            # Return the newly created/updated data or a success message
-            # It's often good practice to return the resource state after creation/update
-            return (
-                updated_data,
-                200,
-                CORS_HEADERS,
-            )
+
         case "DELETE":
-            # --- Authentication (same logic as GET/POST) ---
-            auth_info_header = req.headers.get("X-Apigateway-Api-Userinfo")
-            if not auth_info_header:
-                return (
-                    {"error": "Authentication information not found."},
-                    401,
-                    CORS_HEADERS,
-                )
-
-            try:
-                auth_info_decoded = base64.b64decode(auth_info_header + "==").decode(
-                    "utf-8"
-                )
-                auth_info_json = json.loads(auth_info_decoded)
-                user_id = auth_info_json.get("sub")
-                if not user_id:
-                    return (
-                        {"error": "User ID not found in authentication information."},
-                        400,
-                        CORS_HEADERS,
-                    )
-            except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
-                logging.error(
-                    "Error decoding authentication information for DELETE: %s", e
-                )
-                return (
-                    {"error": "Invalid authentication information format."},
-                    400,
-                    CORS_HEADERS,
-                )
-
-            # --- Delete Firestore User Document ONLY ---
-            # Note: This does not recursively delete subcollections.
-            # For full cleanup of subcollections, you'd need a more complex solution.
             try:
                 user_doc_ref = db.collection("users").document(user_id)
-                doc_snapshot = user_doc_ref.get()  # Check if exists before deleting
+                doc_snapshot = user_doc_ref.get()
 
                 if doc_snapshot.exists:
-                    user_doc_ref.delete()
+                    user_doc_ref.delete()  # Note: Does not recursively delete subcollections.
                     logging.info("Firestore document for user %s deleted.", user_id)
                     return (
-                        {
-                            "message": f"User data for {user_id} deleted successfully from Firestore."
-                        },
+                        {"message": f"User data for {user_id} deleted successfully."},
                         200,
                         CORS_HEADERS,
                     )
                 else:
                     logging.info(
-                        "No Firestore document to delete for user %s (already deleted or never existed).",
-                        user_id,
+                        "No Firestore document to delete for user %s.", user_id
                     )
-                    return (
-                        {"message": "No user data found to delete for this user."},
-                        204,
-                        CORS_HEADERS,
-                    )  # 204 No Content
+                    return "", 204, CORS_HEADERS  # No content
             except Exception as e:
                 logging.error(
                     "Error deleting Firestore document for user %s: %s", user_id, e
                 )
                 return (
-                    {
-                        "error": "An error occurred while deleting user data from Firestore."
-                    },
+                    {"error": "An error occurred while deleting user data."},
                     500,
                     CORS_HEADERS,
                 )
 
         case _:
-            return ("Method not allowed", 405)
+            return {"error": "Method not allowed."}, 405, CORS_HEADERS

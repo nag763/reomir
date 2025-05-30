@@ -16,7 +16,7 @@ export default function Dashboard() {
   const commandInputRef = useRef(null); // Create a ref for the CommandBar input
 
   const user = {
-    name: profile.displayName || 'User',
+    name: profile?.displayName || session.user?.name || 'User',
     email: session.user?.email || '',
     image: session.user?.image || null,
   };

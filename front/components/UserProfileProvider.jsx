@@ -12,6 +12,7 @@ import { useSession } from 'next-auth/react';
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client from previous step
 import LoadingScreen from './LoadingScreen'; // Your global loading screen
 import { useToast } from '@/hooks/use-toast';
+import { signOut } from 'next-auth/react';
 
 // Define the shape of your context
 const UserProfileContext = createContext({
@@ -120,9 +121,7 @@ export const UserProfileProvider = ({ children }) => {
       await callAuthenticatedApi('users/self', {
         method: 'DELETE',
       });
-      setProfile(null); // Clear profile state
       console.log('User profile deleted.');
-      // Optionally, trigger a sign out or redirect the user
       await signOut({ callbackUrl: '/' });
     } catch (error) {
       console.error('Failed to delete user profile:', error);

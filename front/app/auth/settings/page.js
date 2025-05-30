@@ -44,7 +44,7 @@ export default function SettingsPage() {
   // States for profile editing
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [newDisplayName, setNewDisplayName] = useState(
-    profile.displayName || '',
+    profile?.displayName || session.user?.name || '',
   );
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
 
@@ -65,7 +65,7 @@ export default function SettingsPage() {
   }, [isEditingProfile]);
 
   const user = {
-    name: profile.displayName || 'User',
+    name: profile?.displayName || session.user?.name || 'User',
     email: session.user?.email || '',
     image: session.user?.image || null,
   };

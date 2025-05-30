@@ -1,6 +1,9 @@
 # Stage 1: Build the Next.js application
 FROM node:23-alpine AS builder
 
+ARG NEXT_PUBLIC_API_GATEWAY_URL
+ENV NEXT_PUBLIC_API_GATEWAY_URL=${NEXT_PUBLIC_API_GATEWAY_URL}
+
 WORKDIR /app
 
 # Copy package.json and package-lock.json (or yarn.lock)

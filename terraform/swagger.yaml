@@ -66,14 +66,14 @@ securityDefinitions:
     x-google-audiences: ${GOOGLE_OAUTH_CLIENT_ID}
 
 paths:
-  /api/v1/agent: # Corrected: Removed trailing slash
-    get:
+  /api/v1/agent/session: 
+    post:
       summary: "Performs an action in the reomir-agent"
-      operationId: "performAgentAction"
+      operationId: "acquireAgentSession"
       security:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}" # Replace with actual URL
+        address: "${CLOUDRUN_AGENT_URL}/apps/waving_agent/users/user/sessions" # Replace with actual URL
       responses:
         "200":
           description: "Successful operation"
@@ -81,6 +81,59 @@ paths:
           description: "Unauthorized - Token missing or invalid"
         "403":
           description: "Forbidden - Token valid but user not permitted"
+    options: 
+      summary: "CORS preflight for agent endpoint"
+      operationId: "optionsAgentSession"
+      x-google-backend:
+        address: "${CLOUDRUN_AGENT_URL}/apps/waving_agent/users/user/sessions" # Point to the same backend
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers: # <--- Recommended for CORS preflight
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Max-Age:
+              type: integer
+  /api/v1/agent/run: 
+    post:
+      summary: "Performs an action in the reomir-agent"
+      operationId: "performAgentAction"
+      security:
+        - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
+      x-google-backend:
+        address: "${CLOUDRUN_AGENT_URL}/run" # Replace with actual URL
+      responses:
+        "200":
+          description: "Successful operation"
+        "401":
+          description: "Unauthorized - Token missing or invalid"
+        "403":
+          description: "Forbidden - Token valid but user not permitted"
+    options: 
+      summary: "CORS preflight for users endpoint"
+      operationId: "optionsAgentRun"
+      x-google-backend:
+        address: "${CLOUDRUN_AGENT_URL}/run" # Point to the same backend
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers: # <--- Recommended for CORS preflight
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: string
+            Access-Control-Max-Age:
+              type: integer
   /api/v1/users/self: # Corrected: Removed trailing slash
     get:
       summary: "Retrieves user information"

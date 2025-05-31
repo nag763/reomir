@@ -1,26 +1,36 @@
 // dashboard/page.js
 'use client';
 
-import React, { useRef, useEffect } from 'react';
-import TopBar from '@/components/TopBar';
-import CommandBar from '@/components/CommandBar';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useUserProfile } from '@/components/UserProfileProvider';
-// import Sidebar from '@/components/Sidebar'; // If you have a Sidebar component
+import ChatMessagesDisplay from '@/components/ChatMessagesDisplay';
+import ChatMessageInput from '@/components/ChatMessageInput';
+import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService';
+
+const predefinedSuggestions = [
+  'Help me add a new member to my organization.',
+  'What are my current project statuses?',
+  'Show me technology news from the last 24 hours.',
+];
 
 export default function Dashboard() {
-  const { data: session } = useSession();
-  const { profile } = useUserProfile();
+  const { data: authSession } = useSession();
   const commandInputRef = useRef(null);
+  const { profile } = useUserProfile();
 
-  const user = {
-    name: profile?.displayName || session?.user?.name || 'User',
-    email: session?.user?.email || '',
-    image: session?.user?.image || null,
-  };
+  const determinedUserId =
+    profile?.id || authSession?.user?.id || 'anonymous_user';
+  const appName = 'waving_agent';
+
+  const [chatSessionId, setChatSessionId] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false); // For general loading, like input disabling
+  const [isBotTyping, setIsBotTyping] = useState(false); // For typing indicator
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    document.title = 'Dashboard';
+    document.title = 'Dashboard - Chat';
   }, []);
 
   useEffect(() => {
@@ -33,47 +43,128 @@ export default function Dashboard() {
         commandInputRef.current?.focus();
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const ensureSession = async () => {
+    if (chatSessionId) return chatSessionId;
+
+    setIsLoading(true); // General loading for session acquisition
+    setError(null);
+    try {
+      const newSessionId = await acquireChatSession(determinedUserId, appName);
+      setChatSessionId(newSessionId);
+      return newSessionId;
+    } catch (err) {
+      console.error('Dashboard: Error acquiring session:', err);
+      const errorMessage = err.message || 'Could not start a chat session.';
+      setError(errorMessage);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `syserr-${Date.now()}`,
+          role: 'system',
+          text: `Error: ${errorMessage}`,
+        },
+      ]);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (inputText) => {
+    if (!inputText.trim()) return;
+
+    if (!determinedUserId) {
+      const errMsg = 'User ID is not available. Cannot send message.';
+      setError(errMsg);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `syserr-${Date.now()}`,
+          role: 'system',
+          text: `Error: ${errMsg}`,
+        },
+      ]);
+      return;
+    }
+
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user',
+      text: inputText,
     };
-  }, []); // Empty dependency array ensures this runs once on mount and cleans up on unmount
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    setIsLoading(true); // Disable input, show general loading if any
+    setIsBotTyping(true); // Show typing indicator
+    setError(null);
+
+    try {
+      let currentSessionId = chatSessionId;
+      if (!currentSessionId) {
+        currentSessionId = await ensureSession();
+      }
+
+      if (!currentSessionId) {
+        // Error is handled and displayed by ensureSession
+        return;
+      }
+
+      const botMessage = await sendChatMessage(
+        inputText,
+        determinedUserId,
+        appName,
+        currentSessionId,
+      );
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+    } catch (err) {
+      console.error('Dashboard: Error sending message:', err);
+      const errorMessage =
+        err.message || 'Failed to get a response from the bot.';
+      setError(errorMessage);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          id: `syserr-${Date.now()}`,
+          role: 'system',
+          text: `Error: ${errorMessage}`,
+        },
+      ]);
+    } finally {
+      setIsLoading(false);
+      setIsBotTyping(false); // Hide typing indicator
+      commandInputRef.current?.focus();
+    }
+  };
+
+  useEffect(() => {
+    if (determinedUserId && !chatSessionId) {
+      // ensureSession(); // Optional: Call if you want a session ready on load.
+    }
+  }, [determinedUserId, chatSessionId]);
+
+  const isNewConversation = messages.length === 0;
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-mono flex">
-      {/* <Sidebar /> */} {/* Example: If you had a Sidebar */}
-      <div className="flex-1 flex flex-col h-screen">
-        {' '}
-        {/* Consider adjusting ml-16 if sidebar is present */}
-        <TopBar user={user} />
-        <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-          <h1 className="text-3xl font-bold mb-2">Dashboard</h1>
-          <p className="text-lg text-gray-400">Welcome back, {user.name}!</p>
-          {user.email && (
-            <p className="text-sm text-gray-500">Email: {user.email}</p>
-          )}
-
-          {/* Dashboard Widgets */}
-          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-xl font-semibold mb-3">Latest News</h2>
-              {/* Placeholder for News feed content */}
-            </div>
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-xl font-semibold mb-3">
-                GitHub Vulnerabilities
-              </h2>
-              {/* Placeholder for GitHub scan results */}
-            </div>
-            <div className="bg-gray-800 p-6 rounded-lg border border-gray-700">
-              <h2 className="text-xl font-semibold mb-3">Confluence Q&A</h2>
-              {/* Placeholder for Confluence integration */}
-            </div>
+    <div className="flex flex-col flex-1 min-h-0">
+      <ChatMessagesDisplay messages={messages} isBotTyping={isBotTyping} />
+      {error &&
+        !messages.find(
+          (msg) => msg.role === 'system' && msg.text.includes(error),
+        ) && (
+          <div className="p-1 text-center text-red-500 text-xs shrink-0">
+            {error}
           </div>
-        </main>
-        <CommandBar ref={commandInputRef} />
-      </div>
+        )}
+      <ChatMessageInput
+        ref={commandInputRef}
+        suggestions={predefinedSuggestions}
+        showSuggestionsCondition={isNewConversation}
+        onSendMessage={handleSendMessage}
+        isLoading={isLoading} // This prop disables the input during any loading
+      />
     </div>
   );
 }

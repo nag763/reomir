@@ -1,5 +1,11 @@
+// components/TopBar.js
+'use client';
+
 import React, { useCallback } from 'react';
+import Link from 'next/link';
 import { Avatar, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button'; // For the menu trigger
+import { useUserProfile } from './UserProfileProvider';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -8,58 +14,136 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Settings, LogOut } from 'lucide-react';
-import Link from 'next/link'; // Import Link for navigation
-import { useRouter } from 'next/navigation';
+import {
+  Settings,
+  LogOut,
+  LayoutDashboard, // Icon for Dashboard
+  Newspaper, // Icon for News Feed
+  Github, // Icon for GitHub
+  Menu as MenuIcon, // Hamburger menu icon
+} from 'lucide-react';
 import { signOut } from 'next-auth/react';
 
-const TopBar = ({ user }) => {
-  const router = useRouter();
+// Navigation items previously in the sidebar (excluding settings)
+const topBarNavItems = [
+  { href: '/auth/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/auth/news', icon: Newspaper, label: 'News Feed' },
+  { href: '/auth/github', icon: Github, label: 'GitHub' }, // Corrected double slash
+];
 
-  // Placeholder function for sign out - replace with your actual sign out logic
+const TopBar = ({}) => {
+  const { session, profile } = useUserProfile();
+
+  const user = {
+    name: profile?.displayName || session?.user?.name || 'User',
+    email: session?.user?.email || '',
+    image: session?.user?.image || null,
+  };
+
   const handleSignOut = useCallback(async () => {
-    signOut({ callbackUrl: '/' }); // Redirect to homepage after sign out
+    signOut({ callbackUrl: '/' });
   }, []);
 
-  if (!user) return null; // Or show nothing/login button
+  // if (!user) return null; // Or show a login button if user is not available
 
   return (
-    <header className="h-16 bg-gray-900/50 backdrop-blur-sm p-4 flex justify-end items-center sticky top-0 z-40 border-b border-gray-800/60">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          {/* The Avatar acts as the trigger */}
-          <Avatar className="cursor-pointer h-9 w-9 border-2 border-gray-700 hover:border-indigo-400 transition-colors">
-            <AvatarImage src={user.image} alt={user?.name || 'User Avatar'} />
-          </Avatar>
-        </DropdownMenuTrigger>
+    <header className="h-16 bg-gray-900/50 backdrop-blur-sm p-4 flex justify-between items-center sticky top-0 z-40 border-b border-gray-800/60">
+      <div className="flex items-center gap-4">
+        {/* Logo/Brand Name */}
+        <Link href="/auth/dashboard" className="flex items-center">
+          <div className="text-2xl font-bold text-gray-100">
+            re<span className="text-indigo-400">o</span>mir
+          </div>
+        </Link>
+      </div>
 
-        <DropdownMenuContent
-          className="w-56 mr-4 mt-2 bg-gray-800 text-gray-100 border-gray-700 font-mono shadow-xl" // Apply dark theme styles
-          align="end" // Aligns the menu to the right edge
-        >
-          <DropdownMenuLabel className="text-gray-400">
-            <div className="font-bold">{user?.name || 'User'}</div>
-            <div className="text-xs font-normal">
-              {user?.email || 'No email'}
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-gray-700" />
-          <Link href="/auth/settings" passHref>
-            <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 !text-gray-100 focus:bg-gray-700 focus:!text-white">
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Parameters</span>
-            </DropdownMenuItem>
-          </Link>
-          <DropdownMenuSeparator className="bg-gray-700" />
-          <DropdownMenuItem
-            className="cursor-pointer !text-red-400 hover:!bg-red-900/50 focus:!bg-red-900/50 focus:!text-red-300"
-            onClick={handleSignOut} // Attach sign out handler
+      {/* User Profile Dropdown (existing) */}
+      <div className="flex space-x-4">
+        {/* Navigation Dropdown Menu */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-gray-300 hover:text-white hover:bg-gray-700"
+            >
+              <MenuIcon className="h-5 w-5" />
+              <span className="sr-only">Open navigation menu</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            className="ml-2 mt-2 bg-gray-800 text-gray-100 border-gray-700 font-mono shadow-xl"
+            align="start"
           >
-            <LogOut className="mr-2 h-4 w-4" />
-            <span>Sign Out</span>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <DropdownMenuLabel className="text-gray-400">
+              Navigation
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-gray-700" />
+            {topBarNavItems.map((item) => (
+              <Link href={item.href} passHref key={item.label}>
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 !text-gray-100 focus:bg-gray-700 focus:!text-white">
+                  <item.icon className="mr-2 h-4 w-4 text-gray-300" />
+                  <span>{item.label}</span>
+                </DropdownMenuItem>
+              </Link>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        {user && ( // Conditionally render user menu if user object exists
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Avatar className="cursor-pointer h-9 w-9 border-2 border-gray-700 hover:border-indigo-400 transition-colors">
+                <AvatarImage
+                  src={user.image || undefined}
+                  alt={user?.name || 'User Avatar'}
+                />
+                {/* Basic fallback if no image, you can customize this further */}
+                {!user.image && (
+                  <div className="flex items-center justify-center h-full w-full bg-gray-700 text-xs text-gray-400">
+                    {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+              </Avatar>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="w-56 mr-4 mt-2 bg-gray-800 text-gray-100 border-gray-700 font-mono shadow-xl"
+              align="end"
+            >
+              <DropdownMenuLabel className="text-gray-400">
+                <div className="font-bold">{user?.name || 'User'}</div>
+                <div className="text-xs font-normal">
+                  {user?.email || 'No email'}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-gray-700" />
+              <Link href="/auth/settings" passHref>
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 !text-gray-100 focus:bg-gray-700 focus:!text-white">
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Parameters</span>
+                </DropdownMenuItem>
+              </Link>
+              <DropdownMenuSeparator className="bg-gray-700" />
+              <DropdownMenuItem
+                className="cursor-pointer !text-red-400 hover:!bg-red-900/50 focus:!bg-red-900/50 focus:!text-red-300"
+                onClick={handleSignOut}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sign Out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {!user && ( // Example: Show a login link if no user
+          <Link href="/api/auth/signin" passHref>
+            <Button
+              variant="outline"
+              className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+            >
+              Sign In
+            </Button>
+          </Link>
+        )}
+      </div>
     </header>
   );
 };

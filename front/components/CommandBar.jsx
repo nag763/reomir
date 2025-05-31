@@ -1,9 +1,11 @@
 import React, { forwardRef } from 'react'; // Import forwardRef
 import { Input } from '@/components/ui/input';
 import { Terminal } from 'lucide-react';
+import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client
 
 // Wrap the component with forwardRef
 const CommandBar = forwardRef((props, ref) => {
+  callAuthenticatedApi('agent/session', { method: 'POST' });
   return (
     <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-sm z-40">
       <div className="relative flex items-center">

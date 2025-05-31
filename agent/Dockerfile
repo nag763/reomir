@@ -23,4 +23,4 @@ COPY ./waving_agent /app/waving_agent
 EXPOSE 8000
 
 # Command to start the ADK API server
-CMD ["adk", "api_server", "--host", "0.0.0.0", "./", "---allow_origins", "'*'"]
+CMD ["adk", "api_server", "--host", "0.0.0.0", "./", "--allow_origins", "'*'"]

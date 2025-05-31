@@ -66,14 +66,29 @@ securityDefinitions:
     x-google-audiences: ${GOOGLE_OAUTH_CLIENT_ID}
 
 paths:
-  /api/v1/agent: # Corrected: Removed trailing slash
-    get:
+  /api/v1/agent/session: 
+    post:
+      summary: "Performs an action in the reomir-agent"
+      operationId: "acquireAgentSession"
+      security:
+        - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
+      x-google-backend:
+        address: "${CLOUDRUN_AGENT_URL}/apps/waving_agent/users/user/sessions" # Replace with actual URL
+      responses:
+        "200":
+          description: "Successful operation"
+        "401":
+          description: "Unauthorized - Token missing or invalid"
+        "403":
+          description: "Forbidden - Token valid but user not permitted"
+  /api/v1/agent/run: 
+    post:
       summary: "Performs an action in the reomir-agent"
       operationId: "performAgentAction"
       security:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}" # Replace with actual URL
+        address: "${CLOUDRUN_AGENT_URL}/run_sse" # Replace with actual URL
       responses:
         "200":
           description: "Successful operation"

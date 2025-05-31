@@ -111,8 +111,10 @@ const ChatContainer = ({ appName, determinedUserId, commandInputRef }) => {
 
       const lastPart = response.at(-1);
 
-      if( !lastPart || !lastPart.content || !lastPart.content.parts) {
-        throw new Error('Response does not contain expected content structure.');
+      if (!lastPart || !lastPart.content || !lastPart.content.parts) {
+        throw new Error(
+          'Response does not contain expected content structure.',
+        );
       }
 
       const botText = lastPart.content.parts.at(-1).text;
@@ -150,21 +152,27 @@ const ChatContainer = ({ appName, determinedUserId, commandInputRef }) => {
   }, [determinedUserId, sessionId]);
 
   return (
-    <>
-      <ChatMessagesDisplay messages={messages} />
-      {/* Display general errors not tied to a specific message attempt */}
+    // This div will be a flex column and take up all available space in its parent (main)
+    // min-h-0 is important for flex children that might overflow
+    <div className="flex flex-col flex-1 min-h-0">
+      <ChatMessagesDisplay messages={messages} />{' '}
+      {/* This component is already flex-1 */}
       {error &&
         !messages.find(
           (msg) => msg.role === 'system' && msg.text.includes(error),
         ) && (
-          <div className="p-2 text-center text-red-400 text-xs">{error}</div>
+          <div className="p-1 text-center text-red-500 text-xs shrink-0">
+            {' '}
+            {/* shrink-0 for error msg */}
+            {error}
+          </div>
         )}
-      <ChatMessageInput
-        ref={commandInputRef}
+      <ChatMessageInput // This will naturally be at the bottom of this flex container.
+        ref={commandInputRef} // Its own "sticky bottom-0" reinforces this.
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
       />
-    </>
+    </div>
   );
 };
 

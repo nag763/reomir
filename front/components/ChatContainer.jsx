@@ -6,6 +6,12 @@ import ChatMessagesDisplay from './ChatMessagesDisplay';
 import ChatMessageInput from './ChatMessageInput';
 import { callAuthenticatedApi } from '@/lib/apiClient';
 
+const predefinedSuggestions = [
+  'Help me add a new member to my organization.',
+  'What are my current project statuses?',
+  'Show me technology news from the last 24 hours.',
+];
+
 const ChatContainer = ({ appName, determinedUserId, commandInputRef }) => {
   const [sessionId, setSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -151,6 +157,8 @@ const ChatContainer = ({ appName, determinedUserId, commandInputRef }) => {
     }
   }, [determinedUserId, sessionId]);
 
+  const isNewConversation = messages.length === 0;
+
   return (
     // This div will be a flex column and take up all available space in its parent (main)
     // min-h-0 is important for flex children that might overflow
@@ -169,6 +177,8 @@ const ChatContainer = ({ appName, determinedUserId, commandInputRef }) => {
         )}
       <ChatMessageInput // This will naturally be at the bottom of this flex container.
         ref={commandInputRef} // Its own "sticky bottom-0" reinforces this.
+        suggestions={predefinedSuggestions}
+        showSuggestionsCondition={isNewConversation}
         onSendMessage={handleSendMessage}
         isLoading={isLoading}
       />

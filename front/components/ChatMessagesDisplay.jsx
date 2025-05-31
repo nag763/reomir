@@ -28,7 +28,7 @@ const ChatMessagesDisplay = ({ messages }) => {
   }
 
   return (
-    <ScrollArea className="flex-1 p-4" viewportRef={scrollAreaViewportRef}>
+    <ScrollArea className="flex-1 p-4" viewportref={scrollAreaViewportRef}>
       <div className="space-y-4">
         {messages.map((msg) => (
           <div

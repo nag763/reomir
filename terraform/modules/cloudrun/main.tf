@@ -19,9 +19,9 @@ resource "google_cloud_run_v2_service" "default" {
       }
 
       resources {
-        cpu_idle = true
+        cpu_idle          = true
         startup_cpu_boost = true
-        
+
         limits = {
           "cpu"    = var.cpu
           "memory" = var.memory

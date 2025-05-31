@@ -88,7 +88,7 @@ paths:
       security:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}/run_sse" # Replace with actual URL
+        address: "${CLOUDRUN_AGENT_URL}/run" # Replace with actual URL
       responses:
         "200":
           description: "Successful operation"

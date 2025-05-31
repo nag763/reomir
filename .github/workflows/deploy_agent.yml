@@ -8,8 +8,8 @@ on:
       - 'agent/**' 
 
 env:
-  # --- GCP Cloud Run Variables ---
-  GCP_PROJECT_ID: reomir # Your GCP project ID
+  # --- GCP Cloud Run Variables ---  
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }} # Your GCP project ID
   GCP_REGION: europe-west1 # Cloud Run region
   GAR_REPOSITORY_ID: reomir # Artifact Registry repo ID (from Terraform's repository_id)
   CLOUD_RUN_SERVICE_NAME: reomir-agent # Cloud Run service name

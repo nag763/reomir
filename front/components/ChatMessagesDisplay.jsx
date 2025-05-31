@@ -43,14 +43,16 @@ const ChatMessagesDisplay = ({ messages }) => {
                 'max-w-xl lg:max-w-2xl px-4 py-2 rounded-lg shadow text-sm whitespace-pre-wrap',
                 msg.role === 'user' ? 'bg-indigo-600 text-white' : '',
                 msg.role === 'model' ? 'bg-gray-700 text-gray-100' : '',
-                msg.role === 'system' ? 'bg-red-700 text-white text-center w-full' : '',
+                msg.role === 'system'
+                  ? 'bg-red-700 text-white text-center w-full'
+                  : '',
               )}
             >
               <p>{msg.text}</p>
               {msg.role !== 'system' && (
-                 <span className="text-xs opacity-70 block text-right mt-1">
-                    {msg.role === 'model' ? 'Bot' : 'You'}
-                 </span>
+                <span className="text-xs opacity-70 block text-right mt-1">
+                  {msg.role === 'model' ? 'Bot' : 'You'}
+                </span>
               )}
             </div>
           </div>

@@ -49,14 +49,15 @@ export default function Dashboard() {
       {/* <Sidebar /> */}
       <div className="flex-1 flex flex-col h-screen">
         <TopBar user={user} />
-        <main className="flex-1 flex flex-col overflow-hidden"> {/* Key for layout */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          {' '}
+          {/* Key for layout */}
           {/* ChatContainer will now manage its children: ChatMessagesDisplay and ChatMessageInput */}
           <ChatContainer
             appName={appName}
             determinedUserId={determinedUserId}
             commandInputRef={commandInputRef}
           />
-
           {/* You can decide if the original dashboard content below the chat is still desired */}
           {/* Or if the chat interface takes the full main area */}
           {/* Example: Keeping other content (might need layout adjustments) */}

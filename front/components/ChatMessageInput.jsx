@@ -11,7 +11,7 @@ const ChatMessageInput = forwardRef(
     {
       onSendMessage,
       isLoading,
-      initialPlaceholder = "Type your message...",
+      initialPlaceholder = 'Type your message...',
       suggestions = [], // Default to empty array
       showSuggestionsCondition = false, // Default to false
     },
@@ -56,8 +56,9 @@ const ChatMessageInput = forwardRef(
       }
     };
 
-    const displaySuggestions = showSuggestionsCondition && inputValue === '' && suggestions.length > 0;
-    console.log({displaySuggestions, suggestions})
+    const displaySuggestions =
+      showSuggestionsCondition && inputValue === '' && suggestions.length > 0;
+    console.log({ displaySuggestions, suggestions });
 
     return (
       <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-sm z-40">
@@ -77,7 +78,10 @@ const ChatMessageInput = forwardRef(
             ))}
           </div>
         )}
-        <form onSubmit={handleFormSubmit} className="relative flex items-center gap-2">
+        <form
+          onSubmit={handleFormSubmit}
+          className="relative flex items-center gap-2"
+        >
           <Terminal className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
           <Input
             ref={ref}
@@ -97,13 +101,21 @@ const ChatMessageInput = forwardRef(
             className="text-gray-400 hover:text-indigo-400 disabled:opacity-50 shrink-0"
             aria-label="Send message"
           >
-            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+            {isLoading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Send className="h-5 w-5" />
+            )}
           </Button>
           {/* Shortcut Hint - Conditionally hide if suggestions are shown and space is tight? For now, keep. */}
           <div className="absolute right-[calc(theme(spacing.4)_+_40px)] top-1/2 transform -translate-y-1/2 text-xs text-gray-600 pointer-events-none md:block hidden">
-            <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">Ctrl</kbd>
+            <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
+              Ctrl
+            </kbd>
             <span className="mx-1">+</span>
-            <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">K</kbd>
+            <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
+              K
+            </kbd>
           </div>
         </form>
       </footer>

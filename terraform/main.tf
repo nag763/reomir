@@ -230,6 +230,24 @@ module "cloudrun_agent" {
   image        = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-agent:latest"
   service_name = "reomir-agent"
 
+  environment_variables = [
+    {
+      name  = "GOOGLE_GENAI_USE_VERTEXAI",
+      value = "1"
+    },
+    {
+      name  = "GOOGLE_CLOUD_PROJECT",
+      value = google_project.reomir.project_id
+    },
+    {
+      name  = "GOOGLE_CLOUD_LOCATION",
+      value = local.region
+    },
+
+  ]
+
+  memory = "1Gi"
+
   depends_on = [
     module.api,
     module.repository,

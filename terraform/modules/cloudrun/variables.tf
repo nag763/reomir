@@ -72,3 +72,21 @@ variable "container_port" {
   default     = 8000
   description = "The port the container listens on."
 }
+
+# ------------------------------------------------------------------------------
+# Variable for the memory allocated to the container
+# ------------------------------------------------------------------------------
+variable "memory" {
+  type        = string
+  default     = "512Mi"
+  description = "The amount of memory allocated to the container."
+}
+
+# ------------------------------------------------------------------------------
+# Variable for the CPU allocated to the container
+# ------------------------------------------------------------------------------
+variable "cpu" {
+  type        = string
+  default     = "1000m"
+  description = "The amount of CPU allocated to the container."
+}

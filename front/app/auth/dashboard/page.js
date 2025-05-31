@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react';
 import { useUserProfile } from '@/components/UserProfileProvider';
 import ChatMessagesDisplay from '@/components/ChatMessagesDisplay';
 import ChatMessageInput from '@/components/ChatMessageInput';
-import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService'; // Import new service
+import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService';
 
 const predefinedSuggestions = [
   'Help me add a new member to my organization.',
@@ -15,7 +15,7 @@ const predefinedSuggestions = [
 ];
 
 export default function Dashboard() {
-  const { data: authSession } = useSession(); // Renamed to avoid conflict with chat sessionId
+  const { data: authSession } = useSession();
   const commandInputRef = useRef(null);
   const { profile } = useUserProfile();
 
@@ -23,9 +23,10 @@ export default function Dashboard() {
     profile?.id || authSession?.user?.id || 'anonymous_user';
   const appName = 'waving_agent';
 
-  const [chatSessionId, setChatSessionId] = useState(null); // Renamed for clarity
+  const [chatSessionId, setChatSessionId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // For general loading, like input disabling
+  const [isBotTyping, setIsBotTyping] = useState(false); // For typing indicator
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -46,11 +47,10 @@ export default function Dashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Wrapper function to manage component state around session acquisition
   const ensureSession = async () => {
     if (chatSessionId) return chatSessionId;
 
-    setIsLoading(true);
+    setIsLoading(true); // General loading for session acquisition
     setError(null);
     try {
       const newSessionId = await acquireChatSession(determinedUserId, appName);
@@ -97,17 +97,18 @@ export default function Dashboard() {
       text: inputText,
     };
     setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setIsLoading(true);
+    setIsLoading(true); // Disable input, show general loading if any
+    setIsBotTyping(true); // Show typing indicator
     setError(null);
 
     try {
       let currentSessionId = chatSessionId;
       if (!currentSessionId) {
-        currentSessionId = await ensureSession(); // This now uses the service
+        currentSessionId = await ensureSession();
       }
 
       if (!currentSessionId) {
-        // Error is handled and displayed by ensureSession, and isLoading will be false
+        // Error is handled and displayed by ensureSession
         return;
       }
 
@@ -133,24 +134,22 @@ export default function Dashboard() {
       ]);
     } finally {
       setIsLoading(false);
+      setIsBotTyping(false); // Hide typing indicator
       commandInputRef.current?.focus();
     }
   };
 
-  // Optional: Attempt to acquire session when component mounts if userId is available.
   useEffect(() => {
     if (determinedUserId && !chatSessionId) {
-      // ensureSession(); // Call if you want a session ready on load.
-      // Consider if you want to handle loading/error states here specifically
-      // or let the first message trigger it.
+      // ensureSession(); // Optional: Call if you want a session ready on load.
     }
-  }, [determinedUserId, chatSessionId]); // Removed ensureSession from deps to avoid loop if called directly
+  }, [determinedUserId, chatSessionId]);
 
   const isNewConversation = messages.length === 0;
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <ChatMessagesDisplay messages={messages} />
+      <ChatMessagesDisplay messages={messages} isBotTyping={isBotTyping} />
       {error &&
         !messages.find(
           (msg) => msg.role === 'system' && msg.text.includes(error),
@@ -164,7 +163,7 @@ export default function Dashboard() {
         suggestions={predefinedSuggestions}
         showSuggestionsCondition={isNewConversation}
         onSendMessage={handleSendMessage}
-        isLoading={isLoading}
+        isLoading={isLoading} // This prop disables the input during any loading
       />
     </div>
   );

@@ -2,24 +2,21 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { ScrollArea } from '@/components/ui/scroll-area'; // shadcn/ui component
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
-const ChatMessagesDisplay = ({ messages }) => {
-  // Ref for the ScrollArea's viewport, as required by the component
+const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
+  // Added isBotTyping prop
   const scrollAreaViewportRef = useRef(null);
-  // New ref for the element at the end of the messages
   const endOfMessagesRef = useRef(null);
 
   useEffect(() => {
-    // When messages change, scroll the 'endOfMessagesRef' into view
     if (endOfMessagesRef.current) {
       endOfMessagesRef.current.scrollIntoView({ behavior: 'smooth' });
-      // You can also use behavior: 'auto' for an instant scroll
     }
-  }, [messages]); // Re-run when messages array changes
+  }, [messages, isBotTyping]); // Re-run when messages or typing status changes
 
-  if (!messages || messages.length === 0) {
+  if (!messages || (messages.length === 0 && !isBotTyping)) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500 p-4">
         Start a conversation by typing below.
@@ -57,7 +54,26 @@ const ChatMessagesDisplay = ({ messages }) => {
             </div>
           </div>
         ))}
-        {/* This invisible div is our target to scroll to */}
+
+        {/* Typing Indicator */}
+        {isBotTyping && (
+          <div className="flex justify-start">
+            <div className="max-w-xl lg:max-w-2xl px-4 py-3 rounded-lg shadow text-sm bg-gray-700 text-gray-100">
+              <div className="flex items-center space-x-1.5 h-5">
+                {' '}
+                {/* Adjusted spacing and height */}
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
+                <span className="typing-dot"></span>
+              </div>
+              {/* Optional: "Bot is typing..." text, can be removed if dots are enough */}
+              {/* <span className="text-xs opacity-70 block text-right mt-1">
+                Bot is typing...
+              </span> */}
+            </div>
+          </div>
+        )}
+
         <div ref={endOfMessagesRef} />
       </div>
     </ScrollArea>

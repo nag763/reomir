@@ -14,12 +14,11 @@ graph TD
     User[End User]
 
     %% User Interaction Flow
-    User -- HTTPS --> API_Gateway
+    User -- HTTPS --> Cloud_Run_Frontend
 
     %% API Gateway Routing
     API_Gateway -- /api/agent --> Cloud_Run_Backend
     API_Gateway -- /api/user --> Cloud_Function_UserMgmt
-    API_Gateway -- / --> Cloud_Run_Frontend
 
     %% Frontend Interactions
     Cloud_Run_Frontend -- Fetches data/triggers actions --> API_Gateway

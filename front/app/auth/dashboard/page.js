@@ -21,7 +21,7 @@ export default function Dashboard() {
 
   const determinedUserId =
     profile?.id || authSession?.user?.id || 'anonymous_user';
-  const appName = 'waving_agent';
+  const appName = 'coordinator';
 
   const [chatSessionId, setChatSessionId] = useState(null);
   const [messages, setMessages] = useState([]);

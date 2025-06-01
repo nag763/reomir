@@ -20,7 +20,7 @@ COPY ./pyproject.toml ./uv.lock /app/
 RUN uv sync --locked
 
 # Copy agent
-COPY ./waving_agent /app/waving_agent
+COPY ./coordinator /app/coordinator
 
 EXPOSE 8000
 

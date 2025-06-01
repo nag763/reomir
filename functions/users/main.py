@@ -5,6 +5,7 @@ This function handles CRUD operations for user profiles, extracting user
 identity from an API Gateway-provided header. It supports GET, POST, PUT,
 and DELETE methods. CORS is handled for all requests.
 """
+
 import base64
 import json
 import logging
@@ -143,7 +144,11 @@ def handler(req: request):
                 if user_doc.exists:
                     return user_doc.to_dict(), 200, CORS_HEADERS
                 else:
-                    return "", 204, CORS_HEADERS  # No content, user document does not exist
+                    return (
+                        "",
+                        204,
+                        CORS_HEADERS,
+                    )  # No content, user document does not exist
             except Exception as e:
                 logging.error("Firestore GET error for user %s: %s", user_id, e)
                 return (
@@ -265,7 +270,7 @@ def handler(req: request):
                     logging.info(
                         "No Firestore document to delete for user %s.", user_id
                     )
-                    return "", 204, CORS_HEADERS # No content, document didn't exist
+                    return "", 204, CORS_HEADERS  # No content, document didn't exist
             except Exception as e:
                 logging.error(
                     "Error deleting Firestore document for user %s: %s", user_id, e

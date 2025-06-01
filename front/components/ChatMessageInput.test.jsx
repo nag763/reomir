@@ -12,7 +12,9 @@ describe('ChatMessageInput Component', () => {
 
   it('renders the text input and send button', () => {
     render(<ChatMessageInput onSendMessage={mockOnSendMessage} />);
-    expect(screen.getByPlaceholderText('Type your message...')).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText('Type your message...'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /send/i })).toBeInTheDocument();
   });
 
@@ -66,11 +68,10 @@ describe('ChatMessageInput Component', () => {
     render(<ChatMessageInput onSendMessage={mockOnSendMessage} />);
     const inputElement = screen.getByPlaceholderText('Type your message...');
     const sendButton = screen.getByRole('button', { name: /send/i });
-    const multilineMessage = "This is line one.\nThis is line two.";
+    const multilineMessage = 'This is line one.\nThis is line two.';
     // Assuming the underlying input component converts newline characters to empty strings or spaces.
     // Based on the error, newlines are stripped: "This is line one.This is line two."
-    const expectedSentMessage = "This is line one.This is line two.";
-
+    const expectedSentMessage = 'This is line one.This is line two.';
 
     fireEvent.change(inputElement, { target: { value: multilineMessage } });
     fireEvent.click(sendButton);

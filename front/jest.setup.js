@@ -1,5 +1,5 @@
 // jest.setup.js
-// Optional: import '@testing-library/jest-dom'; // for extra DOM matchers if using @testing-library
+import '@testing-library/jest-dom'; // for extra DOM matchers if using @testing-library
 
 // You can add global mocks or setup here if needed
 // For example, if you need to mock environment variables for all tests:

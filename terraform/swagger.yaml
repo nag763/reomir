@@ -73,7 +73,7 @@ paths:
       security:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}/apps/waving_agent/users/user/sessions" # Replace with actual URL
+        address: "${CLOUDRUN_AGENT_URL}/apps/coordinator/users/user/sessions" # Replace with actual URL
       responses:
         "200":
           description: "Successful operation"
@@ -85,7 +85,7 @@ paths:
       summary: "CORS preflight for agent endpoint"
       operationId: "optionsAgentSession"
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}/apps/waving_agent/users/user/sessions" # Point to the same backend
+        address: "${CLOUDRUN_AGENT_URL}/apps/coordinator/users/user/sessions" # Point to the same backend
       responses:
         "200":
           description: "Successful CORS preflight"

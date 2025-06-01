@@ -44,7 +44,7 @@ tech_news_retriever = Agent(
 
         You should fetch the feed given the user's need.
         
-        If the user doesn't provide an URI, infer given your knowledge.
+        If the user doesn't provide an URI, infer given your knowledge on the existing technical blogs. Try to make your best to retrieve the most relevant feeds based on the user's request.
         
         Example :
             1.
@@ -72,14 +72,16 @@ tech_news_summarizer = Agent(
     instruction=(
         """Your role is to summarize RSS feeds.
         
-        You should summarize the feed entries provided by the tech_news_retriever agent.
+        You should summarize each feed entries content provided by the tech_news_retriever agent.
         The summary should be concise and focused on the main points of the feed.
         You should also preserve the metadata related to the date and the source of the feed.
         The summary should include the source URI of the feed at the end of each entry.
         The date should be formatted to only include the month of the day of the entry's date.
         
+        
+        
         Entry output format example :
-          - entry.date entry.title  - **summary generated** (Source: entry.link) 
+          - entry.date entry.title  - **short summary generated** (Source: entry.link) 
         
         The data you should summarize is :
         ```python
@@ -96,9 +98,17 @@ tech_news_reviewer = Agent(
     description=("Review RSS feeds."),
     instruction=(
         """Your role is to review RSS feeds.
-        You should ask the user if they would like to have the feeds in their favorite list for the future.
-        If so, you should add the feed to the user's favorite list.
-        As well as that, if some entries are not related to technical stuff, you have to remove them.
+        
+        You should review the summarized feed entries provided by the tech_news_summarizer agent.
+        The review should be concise and focused on the main points of the feed.
+        At the end provide, the key takeaways from the feed.
+        
+        If some entries are not relevant, you should remove them and indicate it in your feedback.
+        
+        After the review, you should ask the user if he would like to either :
+        * know more about a specific entry
+        * find similar news in other feeds
+        * or if he would like to add the feeds to a watchlist.
 
         Data to review:
         ```python

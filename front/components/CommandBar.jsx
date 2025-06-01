@@ -7,7 +7,7 @@ import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client
 const CommandBar = forwardRef((props, ref) => {
   callAuthenticatedApi('agent/session', { method: 'POST' });
   return (
-    <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-sm z-40">
+    <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-xs z-40">
       <div className="relative flex items-center">
         <Terminal className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
         <Input

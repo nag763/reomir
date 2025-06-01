@@ -61,7 +61,7 @@ const ChatMessageInput = forwardRef(
     console.log({ displaySuggestions, suggestions });
 
     return (
-      <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-sm z-40">
+      <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-xs z-40">
         {displaySuggestions && (
           <div className="mb-3 flex flex-wrap items-left justify-left gap-2 px-2">
             {suggestions.map((suggestion, index) => (
@@ -108,7 +108,7 @@ const ChatMessageInput = forwardRef(
             )}
           </Button>
           {/* Shortcut Hint - Conditionally hide if suggestions are shown and space is tight? For now, keep. */}
-          <div className="absolute right-[calc(theme(spacing.4)_+_40px)] top-1/2 transform -translate-y-1/2 text-xs text-gray-600 pointer-events-none md:block hidden">
+          <div className="absolute right-[calc(--spacing(4)+40px)] top-1/2 transform -translate-y-1/2 text-xs text-gray-600 pointer-events-none md:block hidden">
             <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
               Ctrl
             </kbd>

@@ -11,8 +11,8 @@ export const metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen bg-gray-900 text-gray-100 font-mono flex flex-col">
-      {/* Wrapping content in a main tag with flex-grow to push footer down */}
-      <main className="flex-grow p-8 md:p-16">
+      {/* Wrapping content in a main tag with grow to push footer down */}
+      <main className="grow p-8 md:p-16">
         <PageHeader />
 
         <CtaSection />

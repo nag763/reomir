@@ -31,10 +31,10 @@ const ScrollBar = React.forwardRef(
         'flex touch-none select-none transition-colors',
         orientation === 'vertical' &&
           // Make vertical scrollbar thinner (e.g., from w-2.5 to w-2 or w-1.5)
-          'h-full w-2 border-l border-l-transparent p-[1px]',
+          'h-full w-2 border-l border-l-transparent p-px',
         orientation === 'horizontal' &&
           // Optionally, adjust horizontal scrollbar height
-          'h-2 flex-col border-t border-t-transparent p-[1px]',
+          'h-2 flex-col border-t border-t-transparent p-px',
         className,
       )}
       {...props}

@@ -37,7 +37,7 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
           >
             <div
               className={cn(
-                'max-w-xl lg:max-w-2xl px-4 py-2 rounded-lg shadow text-sm whitespace-pre-wrap',
+                'max-w-xl lg:max-w-2xl px-4 py-2 rounded-lg shadow-sm text-sm whitespace-pre-wrap',
                 msg.role === 'user' ? 'bg-indigo-600 text-white' : '',
                 msg.role === 'model' ? 'bg-gray-700 text-gray-100' : '',
                 msg.role === 'system'
@@ -58,7 +58,7 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
         {/* Typing Indicator */}
         {isBotTyping && (
           <div className="flex justify-start">
-            <div className="max-w-xl lg:max-w-2xl px-4 py-3 rounded-lg shadow text-sm bg-gray-700 text-gray-100">
+            <div className="max-w-xl lg:max-w-2xl px-4 py-3 rounded-lg shadow-sm text-sm bg-gray-700 text-gray-100">
               <div className="flex items-center space-x-1.5 h-5">
                 {' '}
                 {/* Adjusted spacing and height */}

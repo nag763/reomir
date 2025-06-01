@@ -47,7 +47,7 @@ const TopBar = ({}) => {
   // if (!user) return null; // Or show a login button if user is not available
 
   return (
-    <header className="h-16 bg-gray-900/50 backdrop-blur-sm p-4 flex justify-between items-center sticky top-0 z-40 border-b border-gray-800/60">
+    <header className="h-16 bg-gray-900/50 backdrop-blur-xs p-4 flex justify-between items-center sticky top-0 z-40 border-b border-gray-800/60">
       <div className="flex items-center gap-4">
         {/* Logo/Brand Name */}
         <Link href="/auth/dashboard" className="flex items-center">
@@ -81,7 +81,7 @@ const TopBar = ({}) => {
             <DropdownMenuSeparator className="bg-gray-700" />
             {topBarNavItems.map((item) => (
               <Link href={item.href} passHref key={item.label}>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 !text-gray-100 focus:bg-gray-700 focus:!text-white">
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 text-gray-100! focus:bg-gray-700 focus:text-white!">
                   <item.icon className="mr-2 h-4 w-4 text-gray-300" />
                   <span>{item.label}</span>
                 </DropdownMenuItem>
@@ -117,14 +117,14 @@ const TopBar = ({}) => {
               </DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-gray-700" />
               <Link href="/auth/settings" passHref>
-                <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 !text-gray-100 focus:bg-gray-700 focus:!text-white">
+                <DropdownMenuItem className="cursor-pointer hover:bg-gray-700 text-gray-100! focus:bg-gray-700 focus:text-white!">
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Parameters</span>
                 </DropdownMenuItem>
               </Link>
               <DropdownMenuSeparator className="bg-gray-700" />
               <DropdownMenuItem
-                className="cursor-pointer !text-red-400 hover:!bg-red-900/50 focus:!bg-red-900/50 focus:!text-red-300"
+                className="cursor-pointer text-red-400! hover:bg-red-900/50! focus:bg-red-900/50! focus:text-red-300!"
                 onClick={handleSignOut}
               >
                 <LogOut className="mr-2 h-4 w-4" />

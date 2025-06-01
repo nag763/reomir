@@ -6,7 +6,7 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
-import { Workflow, Rss, ShieldCheck, Zap, Users, Lock } from 'lucide-react'; // Added icons
+import { Workflow, Rss, ShieldCheck, Zap } from 'lucide-react'; // Added icons
 
 // This is the FeatureCard component, used by the FeaturesSection below.
 // It's good practice to keep it here if it's only used by FeaturesSection,

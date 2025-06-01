@@ -25,7 +25,7 @@ const CtaSection = () => {
       </p>
       <Button
         size="lg"
-        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg transform hover:scale-105 transition-transform"
+        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-lg transform hover:scale-105 transition-transform cursor-pointer"
         onClick={handleLoginClick}
       >
         <GoogleIcon />

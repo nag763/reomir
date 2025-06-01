@@ -12,7 +12,7 @@ root_agent = Agent(
     name="coordinator",
     model="gemini-2.0-flash",
     description=("Coordinate the actions of other agents."),
-    instruction=("Your role is to coordinate the actions of other agents"),
+    instruction=("Your role is to delegate the actions to other agents"),
     tools=[],
     sub_agents=[tech_news_agent],
 )

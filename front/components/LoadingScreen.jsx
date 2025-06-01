@@ -19,7 +19,7 @@ const bootSequence = [
 ];
 
 const BlinkingCursor = () => (
-  <span className="inline-block w-3 h-5 bg-green-400 ml-1 animate-pulse" />
+  <span className="ml-1 inline-block h-5 w-3 animate-pulse bg-green-400" />
 );
 
 const LoadingScreen = () => {
@@ -44,33 +44,21 @@ const LoadingScreen = () => {
   }, [currentLineIndex]);
 
   return (
-    <div
-      className="
-            fixed inset-0 bg-gray-900 text-green-400
-            flex flex-col items-center justify-center
-            font-mono z-9999 p-8
-        "
-    >
+    <div className="fixed inset-0 z-9999 flex flex-col items-center justify-center bg-gray-900 p-8 font-mono text-green-400">
       {/* Top Icon and Title */}
-      <div className="flex items-center mb-8">
-        <BrainCircuit className="h-10 w-10 text-indigo-400 animate-pulse mr-4" />
+      <div className="mb-8 flex items-center">
+        <BrainCircuit className="mr-4 h-10 w-10 animate-pulse text-indigo-400" />
         <h1 className="text-4xl font-bold text-gray-100">
           reomir<span className="text-indigo-400">.</span>
         </h1>
       </div>
 
       {/* Simulated Console Window */}
-      <div
-        className="
-                w-full max-w-xl lg:max-w-2xl h-64
-                bg-black border-2 border-gray-700 rounded-lg
-                p-6 overflow-hidden shadow-2xl shadow-indigo-500/10
-            "
-      >
+      <div className="h-64 w-full max-w-xl overflow-hidden rounded-lg border-2 border-gray-700 bg-black p-6 shadow-2xl shadow-indigo-500/10 lg:max-w-2xl">
         <div className="text-sm">
           {lines.map((line, index) => (
             <p key={index} className="whitespace-pre">
-              <span className="text-gray-600 mr-2">&gt;</span>
+              <span className="mr-2 text-gray-600">&gt;</span>
               {line}
             </p>
           ))}
@@ -80,7 +68,7 @@ const LoadingScreen = () => {
       </div>
 
       {/* Status Bar */}
-      <div className="w-full max-w-xl lg:max-w-2xl mt-4 text-xs text-gray-500 flex justify-between">
+      <div className="mt-4 flex w-full max-w-xl justify-between text-xs text-gray-500 lg:max-w-2xl">
         <span>
           STATUS:{' '}
           {currentLineIndex < bootSequence.length

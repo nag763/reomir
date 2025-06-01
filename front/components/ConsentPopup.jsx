@@ -130,7 +130,7 @@ export default function ConsentPopup() {
     >
       {/* Keep it modal if consent is not yet given */}
       <DialogContent
-        className="sm:max-w-[525px] bg-gray-800 border-gray-700 text-gray-100 font-mono"
+        className="border-gray-700 bg-gray-800 font-mono text-gray-100 sm:max-w-[525px]"
         onEscapeKeyDown={(e) => {
           if (!profile?.cookieConsent) e.preventDefault();
         }}
@@ -142,7 +142,7 @@ export default function ConsentPopup() {
           <DialogTitle className="text-xl text-gray-50">
             Welcome to Reomir!
           </DialogTitle>
-          <DialogDescription className="text-gray-400 pt-2">
+          <DialogDescription className="pt-2 text-gray-400">
             To continue, please confirm your cookie preferences.
           </DialogDescription>
         </DialogHeader>
@@ -152,7 +152,7 @@ export default function ConsentPopup() {
               id="cookieConsent"
               checked={hasAgreedToCookies}
               onCheckedChange={(checked) => setHasAgreedToCookies(!!checked)}
-              className="mt-1 border-gray-500 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 data-[state=checked]:text-white focus-visible:ring-indigo-500"
+              className="mt-1 border-gray-500 focus-visible:ring-indigo-500 data-[state=checked]:border-indigo-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:text-white"
             />
             <Label
               htmlFor="cookieConsent"
@@ -168,7 +168,7 @@ export default function ConsentPopup() {
               id="createOrg"
               checked={wantsToCreateOrg}
               onCheckedChange={(checked) => setWantsToCreateOrg(!!checked)}
-              className="mt-1 border-gray-500 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600 data-[state=checked]:text-white focus-visible:ring-indigo-500"
+              className="mt-1 border-gray-500 focus-visible:ring-indigo-500 data-[state=checked]:border-indigo-600 data-[state=checked]:bg-indigo-600 data-[state=checked]:text-white"
               disabled={!hasAgreedToCookies || isSubmitting}
             />
             <Label
@@ -189,19 +189,19 @@ export default function ConsentPopup() {
                 value={organizationName}
                 onChange={(e) => setOrganizationName(e.target.value)}
                 placeholder="e.g., My Awesome Org"
-                className="bg-gray-700 border-gray-600 text-gray-100 placeholder-gray-500"
+                className="border-gray-600 bg-gray-700 text-gray-100 placeholder-gray-500"
                 disabled={isSubmitting}
               />
             </div>
           )}
 
           {error && (
-            <p className="text-sm text-red-400 px-1 py-2 bg-red-900/30 rounded-md border border-red-700">
+            <p className="rounded-md border border-red-700 bg-red-900/30 px-1 py-2 text-sm text-red-400">
               {error}
             </p>
           )}
         </div>
-        <DialogFooter className="sm:justify-between gap-2 flex-col sm:flex-row">
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
           <Button
             variant="outline"
             onClick={handleDenyAndSignOut}

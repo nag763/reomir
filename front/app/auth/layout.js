@@ -11,7 +11,7 @@ export default function Layout({ children }) {
     <SessionProvider>
       <UserProfileProvider>
         <ProtectedRoute>
-          <main className="min-h-screen bg-gray-900 text-gray-100 font-mono flex flex-1 flex-col h-screen overflow-auto">
+          <main className="flex h-screen min-h-screen flex-1 flex-col overflow-auto bg-gray-900 font-mono text-gray-100">
             <TopBar />
             {children}
           </main>

@@ -10,7 +10,7 @@ export const metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 font-mono flex flex-col">
+    <div className="flex min-h-screen flex-col bg-gray-900 font-mono text-gray-100">
       {/* Wrapping content in a main tag with grow to push footer down */}
       <main className="grow p-8 md:p-16">
         <PageHeader />
@@ -19,11 +19,11 @@ export default function Home() {
         <FeaturesSection />
 
         {/* Disclaimer Section */}
-        <div className="my-12 mx-auto max-w-3xl p-6 bg-amber-900/30 border border-amber-700 rounded-lg text-center shadow-lg">
-          <h3 className="text-xl font-semibold text-amber-300 mb-3">
+        <div className="mx-auto my-12 max-w-3xl rounded-lg border border-amber-700 bg-amber-900/30 p-6 text-center shadow-lg">
+          <h3 className="mb-3 text-xl font-semibold text-amber-300">
             Important Notice
           </h3>
-          <p className="text-amber-400 text-sm md:text-base leading-relaxed">
+          <p className="text-sm leading-relaxed text-amber-400 md:text-base">
             This project is currently under development for the{' '}
             <strong>Google Agent AI Hackathon 2025</strong>.
             <br />

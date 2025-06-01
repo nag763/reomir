@@ -1,11 +1,16 @@
-name: Check Pyink Formatting
+name: Check Pyink Formatting and Run Python Tests
 
 on:
   push:
     paths:
       - './agent/**/*.py'
       - './functions/**/*.py'
+      - '.github/workflows/check_python_validity.yml'
   pull_request:
+    paths:
+      - './agent/**/*.py'
+      - './functions/**/*.py'
+      - '.github/workflows/check_python_validity.yml'
 
 jobs:
   pyink-check:
@@ -65,3 +70,26 @@ jobs:
         if: env.CHANGED_FILES == ''
         run: |
           echo "No Python files changed. Skipping pyink check."
+
+  python-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./functions/users
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "requirements.txt not found in ./functions/users, skipping app dependency installation."
+          fi
+          pip install pytest werkzeug
+      - name: Run tests
+        run: pytest

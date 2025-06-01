@@ -42,7 +42,7 @@ To configure the OAuth client, follow these steps:
 
 See the official Google documentation for more details: [https://developers.google.com/identity/protocols/oauth2/web-server](https://developers.google.com/identity/protocols/oauth2/web-server)
 
-### 4 - Set tfvars
+### 3 - Set tfvars
 
 As your project contains sensitive credentials dependent on your configuraiton, add a terraform.tfvars file in terraform folder with the following values
 
@@ -51,13 +51,14 @@ secrets = {
   "GOOGLE_CLIENT_ID"     = "${THE_CLIENT_ID_CONFIGURED_STEP2}"
   "GOOGLE_CLIENT_SECRET" = "${THE_CLIENT_SECRET_CONFIGURED_STEP2}"
   "NEXTAUTH_SECRET"      = "${RANDOM_VALUE_WITH_HIGH_ENTRHOPY}",
-  "NEXTAUTH_URL"         = "https://reomir-front-${PROJECT_ID}.europe-west1.run.app/api/auth"
+  "NEXTAUTH_URL"         = "https://YOUR_FRONTEND_CLOUD_RUN_URL/api/auth" # Replace YOUR_FRONTEND_CLOUD_RUN_URL with the actual URL of your deployed frontend service. This URL is typically https://<service-name>-<project-hash>-<region>.a.run.app but can be found in the Google Cloud Console after deployment or from the output of `terraform output -raw cloudrun_front_url` (if such an output is added to your Terraform configuration).
 }
 ```
+Ensure all `${...}` placeholders are replaced with your actual configured values.
 
 This will apply the secrets on terraform apply
 
-### 5 - Apply Terraform Configuration
+### 4 - Apply Terraform Configuration
 
 With the packages installed, apply the Terraform configuration to your GCP project:
 
@@ -65,7 +66,7 @@ With the packages installed, apply the Terraform configuration to your GCP proje
 terraform apply
 ```
 
-The apply will fail a first time as service API will not be activated. Follow the terraform recommendation to enable it and go on. 
+The apply might fail the first time if certain Google Cloud APIs are not yet enabled for your project (e.g., Cloud Run API, Artifact Registry API, IAM API, etc.). The error message from Terraform will usually indicate which API needs to be enabled. You can enable APIs through the Google Cloud Console (APIs & Services > Library) or by using `gcloud services enable <SERVICE_NAME>` (e.g., `gcloud services enable run.googleapis.com`). After enabling the required APIs, re-run `terraform apply`.
 
 The Cloud Run deployment might initially fail because the required container images haven't been built and pushed yet. 
 

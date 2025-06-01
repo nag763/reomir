@@ -40,7 +40,12 @@ describe('Checkbox Component', () => {
 
   it('calls onCheckedChange callback with the new state when clicked', () => {
     const mockOnCheckedChange = jest.fn();
-    render(<Checkbox id="test-checkbox-callback" onCheckedChange={mockOnCheckedChange} />);
+    render(
+      <Checkbox
+        id="test-checkbox-callback"
+        onCheckedChange={mockOnCheckedChange}
+      />,
+    );
     const checkboxElement = screen.getByRole('checkbox');
 
     fireEvent.click(checkboxElement);
@@ -63,7 +68,7 @@ describe('Checkbox Component', () => {
   });
 
   it('applies custom className', () => {
-    const customClass = "my-custom-checkbox-class";
+    const customClass = 'my-custom-checkbox-class';
     render(<Checkbox id="test-checkbox-class" className={customClass} />);
     // The actual input is hidden, the visual element receives the class.
     // We need to find the element that would visually represent the checkbox.
@@ -82,7 +87,7 @@ describe('Checkbox Component', () => {
       <>
         <label htmlFor="c2">My Other Checkbox</label>
         <Checkbox id="c2" />
-      </>
+      </>,
     );
     expect(screen.getByLabelText('My Other Checkbox')).toBeInTheDocument();
   });

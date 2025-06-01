@@ -30,7 +30,7 @@ describe('Input Component', () => {
   });
 
   it('applies custom className', () => {
-    const customClass = "my-custom-class";
+    const customClass = 'my-custom-class';
     render(<Input placeholder="Custom Class Input" className={customClass} />);
     const inputElement = screen.getByPlaceholderText('Custom Class Input');
     expect(inputElement).toHaveClass(customClass);

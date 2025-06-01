@@ -48,7 +48,7 @@ const LoadingScreen = () => {
       className="
             fixed inset-0 bg-gray-900 text-green-400
             flex flex-col items-center justify-center
-            font-mono z-[9999] p-8
+            font-mono z-9999 p-8
         "
     >
       {/* Top Icon and Title */}

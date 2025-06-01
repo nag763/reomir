@@ -14,8 +14,7 @@ def fetch_feed(uri: str) -> dict:
     Returns:
         dict: A dictionary containing the feed content or metadata.
               Includes as well a status code and message indicating on whether it was successful on retrieving the feed.
-              The feed's content is in the 'entries' key, which is a list of feed entries.
-
+              The feed's content is in the 'entries' key, which is a list of feed entries
     """
     feed = parse(uri)
     if feed.bozo != 1:
@@ -55,6 +54,8 @@ tech_news_retriever = Agent(
         Example :
             - User: What are the news from https://blog.google/rss/ , https://aws.amazon.com/blogs/aws/feed/ and https://azure.microsoft.com/en-us/blog/feed/
             - You: I will fetch the latest tech news from https://blog.google/rss/ , https://aws.amazon.com/blogs/aws/feed/ and https://azure.microsoft.com/en-us/blog/feed/
+            
+        Output *only* the content as it is fetched from the tool, without modifying of the content, enclosed in a code block (```...```).
         """
     ),
     output_key="news_feed",
@@ -74,15 +75,18 @@ tech_news_summarizer = Agent(
         The summary should include the source URI of the feed at the end of each entry.
         The date should be formatted to only include the month of the day of the entry's date.
         
+        To summarize the content, focus on the description of the entry, and if it is not available, use the title of the entry
         
         
         Entry output format example :
           - entry.date entry.title  - **short summary generated** (Source: entry.link) 
         
         The data you should summarize is :
-        ```python
+        ```
         {news_feed}
         ```
+        
+        Output the summarized content *only* in a code block (```...```).
     """
     ),
     output_key="news_summarized",
@@ -107,9 +111,11 @@ tech_news_reviewer = Agent(
         * or if he would like to add the feeds to a watchlist.
 
         Data to review:
-        ```python
+        ```
         {news_summarized}
         ```
+        
+        Output the content *only* in a markdown readable format for the user.
     """
     ),
     output_key="news_reviewed",

@@ -1,4 +1,3 @@
-// components/ChatMessageInput.js
 'use client';
 
 import React, { useState, forwardRef } from 'react';
@@ -111,7 +110,6 @@ const ChatMessageInput = forwardRef(
               <Send className="h-5 w-5" />
             )}
           </Button>
-          {/* Shortcut Hint */}
           <div className="absolute right-[calc(--spacing(4)+40px)] top-1/2 transform -translate-y-1/2 text-xs text-gray-600 pointer-events-none md:block hidden">
             <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
               Ctrl

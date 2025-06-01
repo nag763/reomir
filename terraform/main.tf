@@ -19,7 +19,6 @@ locals {
 # ------------------------------------------------------------------------------
 terraform {
   required_providers {
-    # Configure the Google provider
     google = {
       source  = "hashicorp/google"
       version = "~> 6.0"
@@ -34,7 +33,6 @@ terraform {
 # ------------------------------------------------------------------------------
 # Additional modules and resources
 # ------------------------------------------------------------------------------
-# Add documentation for modules and resources here
 
 # Generate a random integer to ensure project ID uniqueness if not explicitly set.
 # This helps in creating a unique project ID suffix.
@@ -48,21 +46,17 @@ resource "random_integer" "project_id" {
 }
 
 
-# ------------------------------------------------------------------------------
-# Configure the Google Cloud provider
-# ------------------------------------------------------------------------------
 provider "google" {
-  region                = "europe-west1" # Specify the Google Cloud region
+  region                = "europe-west1"
   user_project_override = true
 }
 
 # ------------------------------------------------------------------------------
 # Create or import the Google Cloud Project
 # ------------------------------------------------------------------------------
-# This resource defines the GCP project itself.
 resource "google_project" "reomir" {
   name       = "reomir"
-  project_id = "reomir-${random_integer.project_id.result}" # Creates a unique project ID
+  project_id = "reomir-${random_integer.project_id.result}"
 
   billing_account = var.billing_account
   deletion_policy = "DELETE" # Ensures project is deleted when 'terraform destroy' is run.

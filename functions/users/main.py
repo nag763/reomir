@@ -16,15 +16,12 @@ from flask import request
 from google.cloud import firestore
 
 
-# Initialize Firestore client
 db = firestore.Client()
 
-# Configuration
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 X_APIGATEWAY_USERINFO_HEADER = "X-Apigateway-Api-Userinfo"
 USER_ID_CLAIM = "sub"  # Standard OpenID Connect claim for subject (user ID)
 
-# Global CORS headers
 CORS_HEADERS = {
     "Access-Control-Allow-Origin": ALLOWED_ORIGINS,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",

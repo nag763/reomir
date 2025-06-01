@@ -18,6 +18,13 @@ import { useUserProfile } from '@/components/UserProfileProvider'; // Your conte
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Your API client
 import { useRouter } from 'next/navigation';
 
+/**
+ * @file Renders a modal dialog to manage user consent for cookies and
+ * optionally allow them to create an organization.
+ * It interacts with NextAuth for session data and UserProfileProvider for profile updates.
+ * The dialog is displayed based on the user's authentication status and consent state
+ * stored in their profile.
+ */
 export default function ConsentPopup() {
   // session for auth status, profile for app-specific data including consent
   const { data: session, status: sessionStatus } = useSession();

@@ -1,10 +1,27 @@
-// components/ChatMessagesDisplay.js
 'use client';
 
 import React, { useEffect, useRef } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
+/**
+ * @typedef {object} Message
+ * @property {string} id - Unique identifier for the message.
+ * @property {'user' | 'model' | 'system'} role - The role of the message sender.
+ * @property {string} text - The content of the message. HTML is allowed for 'model' role.
+ */
+
+/**
+ * @typedef {object} ChatMessagesDisplayProps
+ * @property {Message[]} messages - An array of message objects to display.
+ * @property {boolean} isBotTyping - Flag to indicate if the bot is currently typing.
+ */
+
+/**
+ * Renders a list of chat messages and a typing indicator.
+ * Automatically scrolls to the latest message.
+ * @param {ChatMessagesDisplayProps} props - The props for the component.
+ */
 const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
   // Added isBotTyping prop
   const scrollAreaViewportRef = useRef(null);
@@ -70,10 +87,6 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
                 <span className="typing-dot"></span>
                 <span className="typing-dot"></span>
               </div>
-              {/* Optional: "Bot is typing..." text, can be removed if dots are enough */}
-              {/* <span className="text-xs opacity-70 block text-right mt-1">
-                Bot is typing...
-              </span> */}
             </div>
           </div>
         )}

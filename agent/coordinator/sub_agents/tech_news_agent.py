@@ -1,4 +1,4 @@
-from google.adk.agents import Agent
+from google.adk.agents import SequentialAgent, Agent
 
 from feedparser import parse
 
@@ -35,31 +35,78 @@ def fetch_feed(uri: str) -> dict:
         }
 
 
-tech_news_agent = Agent(
-    name="rss_agent",
+tech_news_retriever = Agent(
+    name="tech_news_retriever",
     model="gemini-2.0-flash",
-    description=("Fetch and summarize RSS feeds."),
+    description=("Fetch RSS feeds."),
     instruction=(
-        """Your role is to fetch and summarize RSS feeds.
-                 
-            Once a feed is retrieved, you should extract the relevant information and summarize it.
-            
-            If you are unable to retrieve a particular feed, you should ask the user to provide a valid URI for the feed.
-            
-            It musn't be modified in any case, just summarized. As well as that the feed fetched should only be related to tech news.
-                
-            It is important to process in that order :
-                1. Fetch the feed using the fetcher agent.
-                2. Aggregate the data taking into account :
-                    2.1 Metadata related to the date and the source should be preserved and included in the summary. 
-                    2.2 It is important to have the source URI of the feed at the end of the entry's.
-                    2.3 It is important to keep only the month of the day of the entry's date.
-                    2.4 The summary should be concise and focused on the main points of the feed.
+        """Your role is to fetch RSS feeds.
         
-        Once you are done with processing the feed, you should ask if the user would like to have the feeds in his favorite list for the future, and if so, you should add the feed to the user's favorite list.
+        You should retrieve the feed using the provided URI.
         
-        If you can't achieve this, simply show the user his user id.
+        If you are unable to retrieve a particular feed, you should ask the user to provide a valid URI for the feed.
+        
+        The feed must be related to tech news.
+        
+        Once you have retrieved the feed, you should return it in a dictionary format with the following keys:
+            - status: "success" or "failed"
+            - message: A message indicating whether the retrieval was successful or not
+            - entries: The content of the feed, which is a list of entries.
+            
+        If the RSS feed can't be retrieved, return a dictionary with the status set to "failed" and a message indicating the error.
         """
     ),
+    output_key="news_feed",
     tools=[fetch_feed],
+)
+
+tech_news_summarizer = Agent(
+    name="tech_news_summarizer",
+    model="gemini-2.0-flash",
+    description=("Summarize RSS feeds."),
+    instruction=(
+        """Your role is to summarize RSS feeds.
+        
+        You should summarize the feed entries provided by the tech_news_retriever agent.
+        The summary should be concise and focused on the main points of the feed.
+        You should also preserve the metadata related to the date and the source of the feed.
+        The summary should include the source URI of the feed at the end of each entry.
+        The date should be formatted to only include the month of the day of the entry's date.
+        
+        Entry output format example :
+          - entry.date entry.title  - **summary generated** (Source: entry.link) 
+        
+        The data you should summarize is :
+        ```python
+        {news_feed}
+        ```
+    """
+    ),
+    output_key="news_summarized",
+)
+
+tech_news_reviewer = Agent(
+    name="tech_news_reviewer",
+    model="gemini-2.0-flash",
+    description=("Review RSS feeds."),
+    instruction=(
+        """Your role is to review RSS feeds.
+        You should ask the user if they would like to have the feeds in their favorite list for the future.
+        If so, you should add the feed to the user's favorite list.
+        As well as that, if some entries are not related to technical stuff, you have to remove them.
+
+        Data to review:
+        ```python
+        {news_summarized}
+        ```
+    """
+    ),
+    output_key="news_reviewed",
+)
+
+
+tech_news_agent = SequentialAgent(
+    name="tech_news_agent",
+    description=("Fetch and summarize RSS feeds."),
+    sub_agents=[tech_news_retriever, tech_news_summarizer, tech_news_reviewer],
 )

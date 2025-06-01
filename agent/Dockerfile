@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM ghcr.io/astral-sh/uv:alpine3.21
 
 WORKDIR /app
 
@@ -14,8 +14,10 @@ USER myuser
 # Set up environment variables
 ENV PATH="/home/myuser/.local/bin:$PATH"
 
+COPY ./pyproject.toml ./uv.lock /app/
+
 # Install ADK
-RUN pip install google-adk
+RUN uv sync --locked
 
 # Copy agent
 COPY ./waving_agent /app/waving_agent
@@ -23,4 +25,4 @@ COPY ./waving_agent /app/waving_agent
 EXPOSE 8000
 
 # Command to start the ADK API server
-CMD ["adk", "api_server", "--host", "0.0.0.0", "./", "--allow_origins", "*"]
+CMD ["uv", "run", "adk", "api_server", "--host", "0.0.0.0", "./", "--allow_origins", "*"]

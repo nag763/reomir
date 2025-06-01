@@ -10,7 +10,7 @@ import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService';
 
 const predefinedSuggestions = [
   'What are the latest updates from the major cloud providers over the past 24 hours ?',
-  'What are Google\'s past week announcements ?'
+  "What are Google's past week announcements ?",
 ];
 
 export default function Dashboard() {

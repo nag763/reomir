@@ -3,17 +3,33 @@
 
 import React, { useState, forwardRef } from 'react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button'; // For suggestion pills
+import { Button } from '@/components/ui/button';
 import { Send, Loader2, Terminal } from 'lucide-react';
 
+/**
+ * @typedef {object} ChatMessageInputProps
+ * @property {function} onSendMessage - Callback fired when the user submits a message. Required.
+ * @property {boolean} isLoading - Indicates if a message is currently being processed (e.g., waiting for a bot response). Disables input and shows a loader.
+ * @property {string} [initialPlaceholder='Type your message...'] - Placeholder text for the input field when not loading.
+ * @property {string[]} [suggestions=[]] - An array of suggestion strings to display as clickable pills.
+ * @property {boolean} [showSuggestionsCondition=false] - Condition under which to show the suggestions (e.g., only for a new conversation and empty input).
+ */
+
+/**
+ * A component for users to type and send chat messages.
+ * It includes an input field, a send button, and optional suggestion pills.
+ * Uses `forwardRef` to allow parent components to focus the input field.
+ * @param {ChatMessageInputProps} props - The props for the component.
+ * @param {React.Ref} ref - The ref forwarded to the input element.
+ */
 const ChatMessageInput = forwardRef(
   (
     {
       onSendMessage,
       isLoading,
       initialPlaceholder = 'Type your message...',
-      suggestions = [], // Default to empty array
-      showSuggestionsCondition = false, // Default to false
+      suggestions = [],
+      showSuggestionsCondition = false,
     },
     ref,
   ) => {
@@ -33,19 +49,8 @@ const ChatMessageInput = forwardRef(
 
     const handleSuggestionClick = (suggestionText) => {
       if (onSendMessage && !isLoading) {
-        // We don't setInputValue here because onSendMessage will cause a re-render,
-        // and the input is typically cleared after a message is sent by the form submission logic.
-        // If onSendMessage doesn't clear the input, you might want to call setInputValue(suggestionText) first,
-        // then onSendMessage. But for quick send, just calling onSendMessage is cleaner.
         onSendMessage(suggestionText);
-        // inputValue will be cleared if handleFormSubmit's clear logic runs or by parent.
-        // For now, let's assume onSendMessage leads to eventual input clear or doesn't rely on this component's input value.
-        // To be safe, if we want suggestions to disappear immediately after click & send,
-        // ensure onSendMessage will lead to input field in parent/this being cleared.
-        // Since onSendMessage from ChatContainer does not directly clear inputValue here,
-        // and handleFormSubmit (which clears inputValue) is not called on suggestion click,
-        // we might need to manually clear it or rely on ChatContainer's behavior.
-        // Let's rely on the fact that a new message will be added, and if isNewConversation was true, it might become false.
+        // Input clearing is handled by the parent or the form submission logic.
       }
     };
 
@@ -107,7 +112,7 @@ const ChatMessageInput = forwardRef(
               <Send className="h-5 w-5" />
             )}
           </Button>
-          {/* Shortcut Hint - Conditionally hide if suggestions are shown and space is tight? For now, keep. */}
+          {/* Shortcut Hint */}
           <div className="absolute right-[calc(--spacing(4)+40px)] top-1/2 transform -translate-y-1/2 text-xs text-gray-600 pointer-events-none md:block hidden">
             <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
               Ctrl

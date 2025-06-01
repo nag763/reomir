@@ -1,4 +1,13 @@
 # ------------------------------------------------------------------------------
+# Root Terraform Configuration for Reomir Project
+# ------------------------------------------------------------------------------
+# This file defines the core infrastructure for the Reomir project,
+# including project setup, API enablement, service accounts, Cloud Run services
+# for frontend and agent, Cloud Functions, and API Gateway.
+# It orchestrates various modules to deploy all necessary components.
+# ------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------
 # Define local variables
 # ------------------------------------------------------------------------------
 locals {
@@ -27,12 +36,13 @@ terraform {
 # ------------------------------------------------------------------------------
 # Add documentation for modules and resources here
 
-# Generate a random integer
+# Generate a random integer to ensure project ID uniqueness if not explicitly set.
+# This helps in creating a unique project ID suffix.
 resource "random_integer" "project_id" {
   min = 1
   max = 10000
   keepers = {
-    # Generate a new integer each time the project name changes
+    # Generate a new integer each time the base project name changes
     name = "reomir"
   }
 }
@@ -42,22 +52,23 @@ resource "random_integer" "project_id" {
 # Configure the Google Cloud provider
 # ------------------------------------------------------------------------------
 provider "google" {
-  # Specify the Google Cloud region
-  region                = "europe-west1"
+  region                = "europe-west1" # Specify the Google Cloud region
   user_project_override = true
 }
 
 # ------------------------------------------------------------------------------
-# Retrieve project information
+# Create or import the Google Cloud Project
 # ------------------------------------------------------------------------------
+# This resource defines the GCP project itself.
 resource "google_project" "reomir" {
   name       = "reomir"
-  project_id = "reomir-${random_integer.project_id.result}"
+  project_id = "reomir-${random_integer.project_id.result}" # Creates a unique project ID
 
   billing_account = var.billing_account
-  deletion_policy = "DELETE"
+  deletion_policy = "DELETE" # Ensures project is deleted when 'terraform destroy' is run.
 }
 
+# Enables the Service Usage API, necessary for Terraform to manage other service APIs.
 module "service_usage_api" {
   source     = "./modules/api"
   project_id = google_project.reomir.project_id
@@ -81,8 +92,9 @@ module "prioritized_api" {
 }
 
 # ------------------------------------------------------------------------------
-# Module to enable required APIs
+# Module to enable core and product-specific Google Cloud APIs
 # ------------------------------------------------------------------------------
+# This enables all necessary APIs for the project's services to function.
 module "api" {
   source     = "./modules/api"
   project_id = google_project.reomir.project_id
@@ -107,8 +119,9 @@ module "api" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for managing secrets
+# Module for managing secrets in Google Secret Manager
 # ------------------------------------------------------------------------------
+# Stores sensitive configuration like API keys and secrets.
 module "secret_manager" {
   source      = "./modules/secret_manager"
   secrets     = var.secrets
@@ -118,8 +131,9 @@ module "secret_manager" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for managing Artifact Registry repository
+# Module for managing Artifact Registry repository for Docker images
 # ------------------------------------------------------------------------------
+# Creates a repository to store Docker images for Cloud Run services.
 module "repository" {
   source = "./modules/repository"
 
@@ -131,6 +145,7 @@ module "repository" {
   ]
 }
 
+# Configures Firestore in Native mode for the project.
 module "firestore" {
   source = "./modules/firestore"
 
@@ -143,8 +158,9 @@ module "firestore" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for managing service account for GitHub Actions
+# Module for managing the service account for GitHub Actions CI/CD
 # ------------------------------------------------------------------------------
+# This service account is used by GitHub Actions to deploy resources.
 module "service_account_gh" {
   source = "./modules/service_account"
 
@@ -153,11 +169,11 @@ module "service_account_gh" {
   gcp_project = google_project.reomir.project_id
 
   roles = [
-    "roles/run.admin",
-    "roles/artifactregistry.writer",
-    "roles/iam.serviceAccountUser",
-    "roles/cloudbuild.builds.editor",
-    "roles/cloudfunctions.developer"
+    "roles/run.admin", # For managing Cloud Run services
+    "roles/artifactregistry.writer", # For pushing images to Artifact Registry
+    "roles/iam.serviceAccountUser",  # For impersonating other service accounts if needed
+    "roles/cloudbuild.builds.editor", # For submitting builds
+    "roles/cloudfunctions.developer" # For deploying Cloud Functions
   ]
 
   depends_on = [
@@ -165,6 +181,7 @@ module "service_account_gh" {
   ]
 }
 
+# Service account for API Gateway to invoke backend services.
 module "service_account_apigw" {
   source = "./modules/service_account"
 
@@ -183,17 +200,18 @@ module "service_account_apigw" {
 
 
 # ------------------------------------------------------------------------------
-# Module for managing service account for frontend
+# Module for managing the service account for the frontend Cloud Run service
 # ------------------------------------------------------------------------------
+# Grants frontend service necessary permissions (e.g., access secrets).
 module "service_account_front" {
   source = "./modules/service_account"
 
-  sa_id = "cloudrun-front"
+  sa_id = "cloudrun-front" # Service account ID for the frontend
 
   gcp_project = google_project.reomir.project_id
 
   roles = [
-    "roles/secretmanager.secretAccessor"
+    "roles/secretmanager.secretAccessor" # Allows access to secrets stored in Secret Manager
   ]
 
   depends_on = [
@@ -202,8 +220,9 @@ module "service_account_front" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for configuring Workload Identity Federation
+# Module for configuring Workload Identity Federation for GitHub Actions
 # ------------------------------------------------------------------------------
+# Allows GitHub Actions to securely authenticate with GCP using OIDC.
 module "wif" {
   source = "./modules/wif"
 
@@ -220,12 +239,13 @@ module "wif" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for deploying Cloud Run service for agent
+# Module for deploying the backend agent as a Cloud Run service
 # ------------------------------------------------------------------------------
+# Deploys the Python-based backend agent.
 module "cloudrun_agent" {
   source = "./modules/cloudrun"
 
-  gcp_region   = local.region
+  gcp_region   = local.region # Deploys to the defined local region
   gcp_project  = google_project.reomir.project_id
   image        = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-agent:latest"
   service_name = "reomir-agent"
@@ -255,20 +275,21 @@ module "cloudrun_agent" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for deploying Cloud Run service for frontend
+# Module for deploying the Next.js frontend as a Cloud Run service
 # ------------------------------------------------------------------------------
+# Deploys the user-facing web application.
 module "cloudrun_front" {
   source = "./modules/cloudrun"
 
-  gcp_region     = local.region
+  gcp_region     = local.region # Deploys to the defined local region
   gcp_project    = google_project.reomir.project_id
-  image          = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-front:latest"
+  image          = "${module.repository.location}-docker.pkg.dev/${module.repository.project}/${module.repository.repository_id}/reomir-front:latest" # Image from Artifact Registry
   service_name   = "reomir-front"
-  open_to_public = true
+  open_to_public = true # Makes the frontend publicly accessible
 
-  service_account_email = module.service_account_front.email
+  service_account_email = module.service_account_front.email # Assigns dedicated SA
 
-  environment_variables = [
+  environment_variables = [ # Environment variables, including secrets
     {
       name = "NEXTAUTH_SECRET",
       secret_ref = {
@@ -311,28 +332,30 @@ module "cloudrun_front" {
 module "function_bucket" {
   source = "./modules/bucket"
 
-  name        = "reomir-function-bucket"
+  name        = "reomir-function-bucket" # Name for the GCS bucket
   location    = local.region
   gcp_project = google_project.reomir.project_id
 }
 
+# Deploys the Cloud Function for user management.
 module "function_user" {
   source = "./modules/functions"
 
   gcp_project = google_project.reomir.project_id
   location    = local.region
 
-  bucket_name   = module.function_bucket.name
-  bucket_object = "reomir-users.zip"
+  bucket_name   = module.function_bucket.name # Source bucket for the function code
+  bucket_object = "reomir-users.zip"          # Zipped source code in the bucket
 
   environment_variables = {
-    LOG_EXECUTION_ID = "true"
+    LOG_EXECUTION_ID = "true" # Example environment variable
   }
 
-  function_name = "reomir-users"
-  entry_point   = "handler"
+  function_name = "reomir-users" # Name of the Cloud Function
+  entry_point   = "handler"      # Entry point function in the code
 }
 
+# Deploys the API Gateway to expose backend services.
 module "api_gateway" {
   source = "./modules/api_gateway"
 

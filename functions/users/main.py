@@ -1,3 +1,10 @@
+"""
+Cloud Function to manage user data in Firestore.
+
+This function handles CRUD operations for user profiles, extracting user
+identity from an API Gateway-provided header. It supports GET, POST, PUT,
+and DELETE methods. CORS is handled for all requests.
+"""
 import base64
 import json
 import logging
@@ -28,12 +35,14 @@ CORS_HEADERS = {
 
 
 def _get_auth_user_info(req: request):
-    """
-    Extracts, decodes, and validates user authentication info from request headers.
+    """Extracts, decodes, and validates user authentication info from request headers.
+
+    Args:
+        req (flask.Request): The Flask request object.
 
     Returns:
-        tuple: (auth_info_json, None) on success, or (None, error_response_tuple) on failure.
-               The error_response_tuple is (error_dict, status_code, headers).
+        tuple: (dict, None) on success with user info, or (None, tuple) on error.
+               The error tuple is (error_dict, status_code, headers).
     """
     auth_info_header = req.headers.get(X_APIGATEWAY_USERINFO_HEADER)
     if not auth_info_header:
@@ -63,14 +72,16 @@ def _get_auth_user_info(req: request):
 
 
 def _get_request_data(req: request):
-    """
-    Parses JSON data from the request body.
+    """Parses JSON data from the request body.
+
+    Args:
+        req (flask.Request): The Flask request object.
 
     Returns:
-        tuple: (request_data_json, None) on success, or (None, error_response_tuple) on failure.
+        tuple: (dict, None) on success with request data, or (None, tuple) on error.
+               The error tuple is (error_dict, status_code, headers).
     """
     try:
-        # get_json raises BadRequest (400) if not JSON, malformed, or wrong Content-Type.
         request_data = req.get_json(silent=False)
         if request_data is None:  # Handles cases like an empty body or JSON 'null'
             return None, (
@@ -93,7 +104,21 @@ def _get_request_data(req: request):
 
 @functions_framework.http
 def handler(req: request):
-    """Handles HTTP requests for user data management in Firestore."""
+    """Handles HTTP requests for user data management in Firestore.
+
+    This is the main entry point for the Cloud Function, triggered by HTTP requests
+    routed via the Functions Framework. It delegates to helper functions for
+    authentication and data parsing, then handles business logic based on the
+    HTTP method.
+
+    Args:
+        req (flask.Request): The Flask request object, expected to be routed by
+                             Functions Framework.
+
+    Returns:
+        tuple: A Flask response tuple (body, status_code, headers).
+               Body is JSON or empty.
+    """
 
     if req.method == "OPTIONS":
         return "", 204, CORS_HEADERS
@@ -102,10 +127,10 @@ def handler(req: request):
     # This is performed once for methods that require it.
     auth_info, error_response = _get_auth_user_info(req)
     if error_response:
-        # This error_response already includes (dict, status_code, CORS_HEADERS)
+        # error_response already includes (dict, status_code, CORS_HEADERS)
         return error_response
 
-    # We can be sure auth_info is not None here and USER_ID_CLAIM exists.
+    # auth_info is not None here and USER_ID_CLAIM exists.
     user_id = auth_info[USER_ID_CLAIM]
 
     # --- Method-specific logic ---
@@ -118,8 +143,7 @@ def handler(req: request):
                 if user_doc.exists:
                     return user_doc.to_dict(), 200, CORS_HEADERS
                 else:
-                    # User document does not exist
-                    return "", 204, CORS_HEADERS  # No content
+                    return "", 204, CORS_HEADERS  # No content, user document does not exist
             except Exception as e:
                 logging.error("Firestore GET error for user %s: %s", user_id, e)
                 return (
@@ -161,11 +185,8 @@ def handler(req: request):
 
                 user_doc_ref.set(data_to_store_cleaned, merge=True)
                 logging.info("User document for %s created/updated via POST.", user_id)
-                return (
-                    data_to_store_cleaned,
-                    200,
-                    CORS_HEADERS,
-                )  # 200 for idempotent set/merge
+                # 200 for idempotent set/merge
+                return data_to_store_cleaned, 200, CORS_HEADERS
             except Exception as e:
                 logging.error("Firestore POST error for user %s: %s", user_id, e)
                 return (
@@ -194,10 +215,9 @@ def handler(req: request):
                     request_data
                 )  # Updates fields; fails if doc doesn't exist.
 
-                updated_doc = user_doc_ref.get()  # Fetch the updated document
-                if (
-                    not updated_doc.exists
-                ):  # Should ideally always exist if update() succeeded.
+                updated_doc = user_doc_ref.get()
+                # Should ideally always exist if update() succeeded.
+                if not updated_doc.exists:
                     logging.error(
                         "Firestore PUT error: Document %s not found after presumed update.",
                         user_id,
@@ -233,7 +253,8 @@ def handler(req: request):
                 doc_snapshot = user_doc_ref.get()
 
                 if doc_snapshot.exists:
-                    user_doc_ref.delete()  # Note: Does not recursively delete subcollections.
+                    # Note: Does not recursively delete subcollections.
+                    user_doc_ref.delete()
                     logging.info("Firestore document for user %s deleted.", user_id)
                     return (
                         {"message": f"User data for {user_id} deleted successfully."},
@@ -244,7 +265,7 @@ def handler(req: request):
                     logging.info(
                         "No Firestore document to delete for user %s.", user_id
                     )
-                    return "", 204, CORS_HEADERS  # No content
+                    return "", 204, CORS_HEADERS # No content, document didn't exist
             except Exception as e:
                 logging.error(
                     "Error deleting Firestore document for user %s: %s", user_id, e

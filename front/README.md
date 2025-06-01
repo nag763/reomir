@@ -1,3 +1,10 @@
+# Frontend Application (Reomir Portal)
+
+This directory contains the Next.js frontend application for the Reomir project. It serves as the user interface for interacting with the AI-powered developer portal, allowing users to [mention key user interactions, e.g., submit queries, view results, manage settings].
+
+The application communicates with the backend services (agent and functions) via an API Gateway. Refer to the root `INSTALL.md` for deployment details and `front/lib/apiClient.js` for how API calls are structured.
+
+---
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started

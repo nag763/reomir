@@ -1,3 +1,7 @@
+"""This module defines a simple waving agent using the Google ADK.
+
+The agent is configured to greet the user with a wave.
+"""
 from google.adk.agents import Agent
 
 root_agent = Agent(

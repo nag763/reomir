@@ -169,11 +169,11 @@ module "service_account_gh" {
   gcp_project = google_project.reomir.project_id
 
   roles = [
-    "roles/run.admin", # For managing Cloud Run services
-    "roles/artifactregistry.writer", # For pushing images to Artifact Registry
-    "roles/iam.serviceAccountUser",  # For impersonating other service accounts if needed
+    "roles/run.admin",                # For managing Cloud Run services
+    "roles/artifactregistry.writer",  # For pushing images to Artifact Registry
+    "roles/iam.serviceAccountUser",   # For impersonating other service accounts if needed
     "roles/cloudbuild.builds.editor", # For submitting builds
-    "roles/cloudfunctions.developer" # For deploying Cloud Functions
+    "roles/cloudfunctions.developer"  # For deploying Cloud Functions
   ]
 
   depends_on = [

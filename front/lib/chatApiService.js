@@ -1,5 +1,6 @@
 // lib/chatApiService.js
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Assuming apiClient handles auth
+import { marked } from 'marked';
 
 /**
  * Acquires a new chat session from the backend.
@@ -90,7 +91,7 @@ export const sendChatMessage = async (
   const botMessage = {
     id: lastPart.id || `bot-${Date.now()}`, // Use response ID or generate one
     role: 'model',
-    text: botText,
+    text: await marked.parse(botText),
   };
 
   return botMessage;

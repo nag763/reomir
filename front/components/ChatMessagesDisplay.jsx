@@ -45,7 +45,11 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
                   : '',
               )}
             >
-              <p>{msg.text}</p>
+              {msg.role === 'user' ? (
+                <p>{msg.text}</p>
+              ) : (
+                <div dangerouslySetInnerHTML={{ __html: msg.text }} />
+              )}
               {msg.role !== 'system' && (
                 <span className="text-xs opacity-70 block text-right mt-1">
                   {msg.role === 'model' ? 'Bot' : 'You'}

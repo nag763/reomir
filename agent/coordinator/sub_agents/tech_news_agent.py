@@ -19,10 +19,6 @@ def fetch_feed(uri: str) -> dict:
     """
     feed = parse(uri)
     if feed.bozo != 1:
-        # if before:
-        #     feed.entries = [entry for entry in feed.entries if datetime.datetime(*entry.published_parsed[:6]) < before]
-        # if after:
-        #     feed.entries = [entry for entry in feed.entries if datetime.datetime(*entry.published_parsed[:6]) > after]
         return {
             "status": "success",
             "message": f"Successfully fetched feed from {uri}",

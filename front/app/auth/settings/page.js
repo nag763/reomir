@@ -136,7 +136,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-8 p-8">
-      <h1 className="text-3xl font-bold mb-6 flex items-center">
+      <h1 className="mb-6 flex items-center text-3xl font-bold">
         <User className="mr-3 h-8 w-8 text-indigo-400" />
         User Settings
       </h1>
@@ -144,10 +144,10 @@ export default function SettingsPage() {
       <FeedbackAlert message={feedback.message} type={feedback.type} />
 
       {/* User Profile Card */}
-      <Card className="bg-gray-800 border-gray-700 text-gray-100">
+      <Card className="border-gray-700 bg-gray-800 text-gray-100">
         <CardHeader>
-          <CardTitle className="text-xl flex items-center">
-            <Avatar className="h-10 w-10 mr-4 border-2 border-gray-600">
+          <CardTitle className="flex items-center text-xl">
+            <Avatar className="mr-4 h-10 w-10 border-2 border-gray-600">
               <AvatarImage src={derivedUser.image} alt={derivedUser.name} />
               <AvatarFallback>
                 {derivedUser.name?.charAt(0).toUpperCase() || 'U'}
@@ -168,7 +168,7 @@ export default function SettingsPage() {
               <Input
                 id="displayName"
                 ref={inputRef}
-                className="mt-1 bg-gray-700 border-gray-600 text-lg"
+                className="mt-1 border-gray-600 bg-gray-700 text-lg"
                 value={newDisplayName}
                 onChange={(e) => setNewDisplayName(e.target.value)}
                 disabled={isUpdatingProfile}
@@ -218,7 +218,7 @@ export default function SettingsPage() {
       </Card>
 
       {/* Sign Out Section */}
-      <Card className="bg-gray-800 border-gray-700 text-gray-100">
+      <Card className="border-gray-700 bg-gray-800 text-gray-100">
         <CardHeader>
           <CardTitle className="text-xl">Sign Out</CardTitle>
           <CardDescription className="text-gray-400">
@@ -245,9 +245,9 @@ export default function SettingsPage() {
       </Card>
 
       {/* Danger Zone Card */}
-      <Card className="bg-gray-800 border-red-900/60 text-gray-100">
+      <Card className="border-red-900/60 bg-gray-800 text-gray-100">
         <CardHeader>
-          <CardTitle className="text-xl flex items-center text-red-500">
+          <CardTitle className="flex items-center text-xl text-red-500">
             <AlertTriangle className="mr-3 h-5 w-5" /> Danger Zone
           </CardTitle>
           <CardDescription className="text-gray-400">
@@ -255,9 +255,9 @@ export default function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 border border-red-700/50 rounded-lg bg-red-900/20">
+          <div className="rounded-lg border border-red-700/50 bg-red-900/20 p-4">
             <h3 className="font-semibold text-red-400">Delete Your Account</h3>
-            <p className="text-sm text-gray-300 mt-1">
+            <p className="mt-1 text-sm text-gray-300">
               All your data will be permanently erased. This action cannot be
               undone.
             </p>
@@ -270,13 +270,13 @@ export default function SettingsPage() {
                 <Trash2 className="mr-2 h-4 w-4" /> Delete My Account
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent className="bg-gray-900 border-gray-700 text-gray-100 font-mono">
+            <AlertDialogContent className="border-gray-700 bg-gray-900 font-mono text-gray-100">
               <AlertDialogHeader>
-                <AlertDialogTitle className="text-2xl text-red-500 flex items-center">
+                <AlertDialogTitle className="flex items-center text-2xl text-red-500">
                   <AlertTriangle className="mr-3 h-6 w-6" /> Confirm Account
                   Deletion
                 </AlertDialogTitle>
-                <AlertDialogDescription className="text-gray-400 pt-4">
+                <AlertDialogDescription className="pt-4 text-gray-400">
                   Are you absolutely sure? This action is irreversible. To
                   confirm, type &quot;
                   <strong className="text-green-400">delete me</strong>&quot;
@@ -289,7 +289,7 @@ export default function SettingsPage() {
                 </Label>
                 <Input
                   id="confirm-delete"
-                  className="mt-2 bg-gray-800 border-gray-600 focus:border-green-500 focus:ring-green-500 text-green-400 placeholder:text-gray-600"
+                  className="mt-2 border-gray-600 bg-gray-800 text-green-400 placeholder:text-gray-600 focus:border-green-500 focus:ring-green-500"
                   placeholder="Type 'delete me' here..."
                   value={confirmInput}
                   onChange={(e) => setConfirmInput(e.target.value)}

@@ -65,15 +65,15 @@ const ChatMessageInput = forwardRef(
       showSuggestionsCondition && inputValue === '' && suggestions.length > 0;
 
     return (
-      <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-xs z-40">
+      <footer className="sticky bottom-0 z-40 mt-auto border-t border-gray-800 bg-gray-900/80 p-4 backdrop-blur-xs">
         {displaySuggestions && (
-          <div className="mb-3 flex flex-wrap items-left justify-left gap-2 px-2">
+          <div className="items-left justify-left mb-3 flex flex-wrap gap-2 px-2">
             {suggestions.map((suggestion, index) => (
               <Button
                 key={index}
                 variant="outline"
                 size="sm"
-                className="h-auto whitespace-normal text-xs sm:text-sm bg-gray-700/70 border-gray-600 hover:bg-gray-600/70 text-gray-200 hover:text-gray-100"
+                className="h-auto border-gray-600 bg-gray-700/70 text-xs whitespace-normal text-gray-200 hover:bg-gray-600/70 hover:text-gray-100 sm:text-sm"
                 onClick={() => handleSuggestionClick(suggestion)}
                 disabled={isLoading}
               >
@@ -86,7 +86,7 @@ const ChatMessageInput = forwardRef(
           onSubmit={handleFormSubmit}
           className="relative flex items-center gap-2"
         >
-          <Terminal className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
+          <Terminal className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-500" />
           <Input
             ref={ref}
             type="text"
@@ -95,14 +95,14 @@ const ChatMessageInput = forwardRef(
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
-            className="pl-10 flex-1 bg-gray-800 border-gray-700 text-gray-100 placeholder-gray-500 focus:ring-indigo-500 focus:border-indigo-500 font-mono rounded-md"
+            className="flex-1 rounded-md border-gray-700 bg-gray-800 pl-10 font-mono text-gray-100 placeholder-gray-500 focus:border-indigo-500 focus:ring-indigo-500"
           />
           <Button
             type="submit"
             disabled={isLoading || !inputValue.trim()}
             size="icon"
             variant="ghost"
-            className="text-gray-400 hover:text-indigo-400 disabled:opacity-50 shrink-0"
+            className="shrink-0 text-gray-400 hover:text-indigo-400 disabled:opacity-50"
             aria-label="Send message"
           >
             {isLoading ? (
@@ -112,12 +112,12 @@ const ChatMessageInput = forwardRef(
             )}
           </Button>
           {/* Shortcut Hint */}
-          <div className="absolute right-[calc(--spacing(4)+40px)] top-1/2 transform -translate-y-1/2 text-xs text-gray-600 pointer-events-none md:block hidden">
-            <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
+          <div className="pointer-events-none absolute top-1/2 right-[calc(--spacing(4)+40px)] hidden -translate-y-1/2 transform text-xs text-gray-600 md:block">
+            <kbd className="rounded border border-gray-700 bg-gray-800 px-2 py-0.5">
               Ctrl
             </kbd>
             <span className="mx-1">+</span>
-            <kbd className="px-2 py-0.5 border border-gray-700 bg-gray-800 rounded">
+            <kbd className="rounded border border-gray-700 bg-gray-800 px-2 py-0.5">
               K
             </kbd>
           </div>

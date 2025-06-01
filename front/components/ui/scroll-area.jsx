@@ -28,7 +28,7 @@ const ScrollBar = React.forwardRef(
       ref={ref}
       orientation={orientation}
       className={cn(
-        'flex touch-none select-none transition-colors',
+        'flex touch-none transition-colors select-none',
         orientation === 'vertical' &&
           // Make vertical scrollbar thinner (e.g., from w-2.5 to w-2 or w-1.5)
           'h-full w-2 border-l border-l-transparent p-px',
@@ -43,7 +43,7 @@ const ScrollBar = React.forwardRef(
         className={cn(
           'relative flex-1 rounded-full',
           // Change scrollbar thumb color (e.g., from bg-border to a specific gray)
-          'bg-gray-500 dark:bg-gray-400 opacity-75 hover:opacity-100',
+          'bg-gray-500 opacity-75 hover:opacity-100 dark:bg-gray-400',
           // Original might be 'bg-border'
         )}
       />

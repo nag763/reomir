@@ -147,13 +147,13 @@ export default function Dashboard() {
   const isNewConversation = messages.length === 0;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex min-h-0 flex-1 flex-col">
       <ChatMessagesDisplay messages={messages} isBotTyping={isBotTyping} />
       {error &&
         !messages.find(
           (msg) => msg.role === 'system' && msg.text.includes(error),
         ) && (
-          <div className="p-1 text-center text-red-500 text-xs shrink-0">
+          <div className="shrink-0 p-1 text-center text-xs text-red-500">
             {error}
           </div>
         )}

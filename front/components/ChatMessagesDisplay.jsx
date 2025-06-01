@@ -18,7 +18,7 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
 
   if (!messages || (messages.length === 0 && !isBotTyping)) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-500 p-4">
+      <div className="flex flex-1 items-center justify-center p-4 text-gray-500">
         Start a conversation by typing below.
       </div>
     );
@@ -37,11 +37,11 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
           >
             <div
               className={cn(
-                'max-w-xl lg:max-w-2xl px-4 py-2 rounded-lg shadow-sm text-sm whitespace-pre-wrap',
+                'max-w-xl rounded-lg px-4 py-2 text-sm whitespace-pre-wrap shadow-sm lg:max-w-2xl',
                 msg.role === 'user' ? 'bg-indigo-600 text-white' : '',
                 msg.role === 'model' ? 'bg-gray-700 text-gray-100' : '',
                 msg.role === 'system'
-                  ? 'bg-red-700 text-white text-center w-full'
+                  ? 'w-full bg-red-700 text-center text-white'
                   : '',
               )}
             >
@@ -51,7 +51,7 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
                 <div dangerouslySetInnerHTML={{ __html: msg.text }} />
               )}
               {msg.role !== 'system' && (
-                <span className="text-xs opacity-70 block text-right mt-1">
+                <span className="mt-1 block text-right text-xs opacity-70">
                   {msg.role === 'model' ? 'Bot' : 'You'}
                 </span>
               )}
@@ -62,8 +62,8 @@ const ChatMessagesDisplay = ({ messages, isBotTyping }) => {
         {/* Typing Indicator */}
         {isBotTyping && (
           <div className="flex justify-start">
-            <div className="max-w-xl lg:max-w-2xl px-4 py-3 rounded-lg shadow-sm text-sm bg-gray-700 text-gray-100">
-              <div className="flex items-center space-x-1.5 h-5">
+            <div className="max-w-xl rounded-lg bg-gray-700 px-4 py-3 text-sm text-gray-100 shadow-sm lg:max-w-2xl">
+              <div className="flex h-5 items-center space-x-1.5">
                 {' '}
                 {/* Adjusted spacing and height */}
                 <span className="typing-dot"></span>

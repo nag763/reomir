@@ -1,7 +1,7 @@
 import React from 'react';
 
 const PageFooter = () => (
-  <footer className="text-center mt-16 md:mt-24 text-gray-600 text-sm">
+  <footer className="mt-16 text-center text-sm text-gray-600 md:mt-24">
     &copy; {new Date().getFullYear()} Reomir. Built for developers.
   </footer>
 );

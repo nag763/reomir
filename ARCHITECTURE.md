@@ -1,7 +1,7 @@
 ```mermaid
 graph TD
     subgraph "Google Cloud Platform"
-        API_Gateway[API Gateway]
+        API_Gateway["API Gateway (Validates Google OAuth Token)"]
         Cloud_Run_Frontend[Cloud Run: Frontend]
         Cloud_Run_Backend[Cloud Run: Backend Agent]
         Cloud_Function_UserMgmt[Cloud Function: User Management]
@@ -19,7 +19,7 @@ graph TD
     API_Gateway -- /api/user --> Cloud_Function_UserMgmt
 
     %% Frontend Interactions
-    Cloud_Run_Frontend -- Fetches data/triggers actions --> API_Gateway
+    Cloud_Run_Frontend -- API Calls (with Google OAuth Token) --> API_Gateway
 
     %% Backend Agent Interactions
     Cloud_Run_Backend -- Stores/Retrieves Session Data, Logs --> Firestore
@@ -30,7 +30,7 @@ graph TD
     Cloud_Function_UserMgmt -- Accesses Service Account Keys (if needed) --> Secret_Manager
 
     %% Authentication/Authorization
-    Cloud_Run_Frontend -- Authenticates Users via --> Cloud_Function_UserMgmt
+    %% Removed direct authentication line from Frontend to User Management Function
 
     %% Component Styles (Optional, for better readability if rendered)
     style API_Gateway fill:#D6EAF8,stroke:#2E86C1,stroke-width:2px

@@ -18,15 +18,17 @@ Reomir is an AI-powered developer portal designed to streamline enterprise devel
 
 The project follows a modern web architecture:
 
-*   **Frontend:** A Next.js application providing the user interface.
-*   **Backend Agent:** A Python-based agent responsible for AI logic and backend operations.
-*   **Cloud Functions:** Serverless functions for specific backend tasks.
+*   **Frontend:** A Next.js application providing the user interface. User authentication is initiated here, redirecting to Google for OAuth.
+*   **API Gateway:** Manages and secures access to backend services. It validates Google OAuth tokens to authenticate API requests.
+*   **Backend Agent:** A Python-based agent responsible for AI logic and backend operations, accessed via the API Gateway.
+*   **Cloud Functions:** Serverless functions for specific backend tasks (e.g., user profile management post-authentication), accessed via the API Gateway.
 *   **Infrastructure:** Managed by Terraform, ensuring reproducible and scalable deployments on Google Cloud.
 
 ```mermaid
 graph TD
     subgraph "Google Cloud Platform"
-        API_Gateway[API Gateway]
+        API_Gateway["API Gateway (Validates Google OAuth Token)"]
+
         Cloud_Run_Frontend[Cloud Run: Frontend]
         Cloud_Run_Backend[Cloud Run: Backend Agent]
         Cloud_Function_UserMgmt[Cloud Function: User Management]
@@ -44,7 +46,8 @@ graph TD
     API_Gateway -- /api/user --> Cloud_Function_UserMgmt
 
     %% Frontend Interactions
-    Cloud_Run_Frontend -- Fetches data/triggers actions --> API_Gateway
+    Cloud_Run_Frontend -- API Calls (with Google OAuth Token) --> API_Gateway
+
 
     %% Backend Agent Interactions
     Cloud_Run_Backend -- Stores/Retrieves Session Data, Logs --> Firestore
@@ -55,7 +58,8 @@ graph TD
     Cloud_Function_UserMgmt -- Accesses Service Account Keys (if needed) --> Secret_Manager
 
     %% Authentication/Authorization
-    Cloud_Run_Frontend -- Authenticates Users via --> Cloud_Function_UserMgmt
+    %% Removed direct authentication line from Frontend to User Management Function
+
 
     %% Component Styles (Optional, for better readability if rendered)
     style API_Gateway fill:#D6EAF8,stroke:#2E86C1,stroke-width:2px

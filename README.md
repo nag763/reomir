@@ -32,10 +32,8 @@ graph TD
         Cloud_Function_UserMgmt[Cloud Function: User Management]
         Firestore[Firestore Database]
         Secret_Manager[Secret Manager]
-        Artifact_Registry[Artifact Registry]
     end
 
-    GitHub[GitHub: Source Code & WIF]
     User[End User]
 
     %% User Interaction Flow
@@ -56,17 +54,6 @@ graph TD
     Cloud_Function_UserMgmt -- Stores/Retrieves User Profiles --> Firestore
     Cloud_Function_UserMgmt -- Accesses Service Account Keys (if needed) --> Secret_Manager
 
-    %% CI/CD and Source Control
-    GitHub -- Source Code --> Cloud_Run_Frontend
-    GitHub -- Source Code --> Cloud_Run_Backend
-    GitHub -- Source Code --> Cloud_Function_UserMgmt
-    GitHub -- Stores Docker Images --> Artifact_Registry
-    GitHub -- Workload Identity Federation --> Google_Cloud_Platform
-
-    Cloud_Run_Frontend -- Deploys from --> Artifact_Registry
-    Cloud_Run_Backend -- Deploys from --> Artifact_Registry
-    Cloud_Function_UserMgmt -- Deploys from --> Artifact_Registry
-
     %% Authentication/Authorization
     Cloud_Run_Frontend -- Authenticates Users via --> Cloud_Function_UserMgmt
 
@@ -77,8 +64,6 @@ graph TD
     style Cloud_Function_UserMgmt fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px
     style Firestore fill:#FADBD8,stroke:#C0392B,stroke-width:2px
     style Secret_Manager fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px
-    style Artifact_Registry fill:#FADBD8,stroke:#C0392B,stroke-width:2px
-    style GitHub fill:#CCCCCC,stroke:#333333,stroke-width:2px
     style User fill:#E5E7E9,stroke:#5D6D7E,stroke-width:2px
 ```
 
@@ -93,6 +78,63 @@ This project was developed as part of the Google Hackathon Agentic AI Challenge.
 ## Cost Optimization Note
 
 To minimize operational costs during development and demonstration, the cloud instances are configured to stop when not actively in use. In a production environment, these instances would typically have higher memory allocations and would be configured to run continuously to ensure availability.
+
+## CI/CD Pipeline
+The project uses GitHub Actions for CI/CD. When changes are pushed to the main branch, GitHub Actions workflows are triggered to:
+- Build Docker images for the frontend and backend agent services.
+- Package the Cloud Function code.
+- Push the Docker images to Google Artifact Registry.
+- Deploy the new versions of the Cloud Run services (frontend and backend) and the Cloud Function.
+This automated process ensures that new changes are quickly and reliably deployed to the Google Cloud environment.
+The diagram below illustrates this pipeline:
+```mermaid
+graph TD
+    subgraph "Development & Source Control"
+        Developer[Developer]
+        GitHub_Repo[GitHub: Source Code Repository]
+    end
+
+    subgraph "CI/CD Orchestration & Storage"
+        GitHub_Actions[GitHub Actions: Workflow Orchestrator]
+        Artifact_Registry[Artifact Registry: Docker Images & Function Packages]
+        Build_Step[(Build & Package Code)]
+    end
+
+    subgraph "Google Cloud Deployment Targets"
+        Cloud_Run_Frontend[Cloud Run: Frontend]
+        Cloud_Run_Backend[Cloud Run: Backend Agent]
+        Cloud_Function_UserMgmt[Cloud Function: User Management]
+    end
+
+    %% Flow
+    Developer -- 1. Pushes Code --> GitHub_Repo
+    GitHub_Repo -- 2. Triggers --> GitHub_Actions
+
+    GitHub_Actions -- 3. Executes Workflow --> Build_Step
+    Build_Step -- "Builds Docker images (Frontend, Backend)" --> GitHub_Actions
+    Build_Step -- "Packages Function code (User Mgmt)" --> GitHub_Actions
+
+    GitHub_Actions -- 4. Pushes Built Artifacts --> Artifact_Registry
+
+    GitHub_Actions -- 5. Deploys Service --> Cloud_Run_Frontend
+    GitHub_Actions -- 5. Deploys Service --> Cloud_Run_Backend
+    GitHub_Actions -- 5. Deploys Function --> Cloud_Function_UserMgmt
+
+    %% Deployment Source (Implicitly from Artifact Registry via GitHub Actions)
+    Cloud_Run_Frontend -.-> Artifact_Registry
+    Cloud_Run_Backend -.-> Artifact_Registry
+    Cloud_Function_UserMgmt -.-> Artifact_Registry
+
+    %% Styling (Optional)
+    style Developer fill:#E5E7E9,stroke:#5D6D7E,stroke-width:2px
+    style GitHub_Repo fill:#CCCCCC,stroke:#333333,stroke-width:2px
+    style GitHub_Actions fill:#FFF9C4,stroke:#FBC02D,stroke-width:2px
+    style Build_Step fill:#E1BEE7,stroke:#8E24AA,stroke-width:2px
+    style Artifact_Registry fill:#FADBD8,stroke:#C0392B,stroke-width:2px
+    style Cloud_Run_Frontend fill:#D1F2EB,stroke:#1ABC9C,stroke-width:2px
+    style Cloud_Run_Backend fill:#D1F2EB,stroke:#1ABC9C,stroke-width:2px
+    style Cloud_Function_UserMgmt fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px
+```
 
 ## General disclaimer
 

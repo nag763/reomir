@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Cpu, BrainCircuit } from 'lucide-react'; // Choose one, or use both!
+import { BrainCircuit } from 'lucide-react'; // Choose one, or use both!
 
 // Nerdier, more detailed loading steps
 const bootSequence = [

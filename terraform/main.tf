@@ -230,7 +230,6 @@ module "wif" {
   gcp_project_number = google_project.reomir.number
 
   pool_name          = "gh-actions-pool"
-  issuer_uri         = "https://token.actions.githubusercontent.com"
   service_account_id = module.service_account_gh.id
 
   depends_on = [

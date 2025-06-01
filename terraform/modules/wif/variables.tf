@@ -24,16 +24,6 @@ variable "pool_name" {
 }
 
 # ------------------------------------------------------------------------------
-# Variable for the issuer URI of the workload identity pool
-# ------------------------------------------------------------------------------
-variable "issuer_uri" {
-  type        = string
-  description = "The issuer URI for the workload identity pool."
-  default     = "https://accounts.google.com"
-
-}
-
-# ------------------------------------------------------------------------------
 # Variable for the service account ID
 # ------------------------------------------------------------------------------
 variable "service_account_id" {

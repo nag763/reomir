@@ -41,19 +41,24 @@ tech_news_retriever = Agent(
     description=("Fetch RSS feeds."),
     instruction=(
         """Your role is to fetch RSS feeds.
+
+        You should fetch the feed given the user's need.
         
-        You should retrieve the feed using the provided URI.
+        If the user doesn't provide an URI, infer given your knowledge.
         
-        If you are unable to retrieve a particular feed, you should ask the user to provide a valid URI for the feed.
-        
-        The feed must be related to tech news.
-        
-        Once you have retrieved the feed, you should return it in a dictionary format with the following keys:
-            - status: "success" or "failed"
-            - message: A message indicating whether the retrieval was successful or not
-            - entries: The content of the feed, which is a list of entries.
+        Example :
+            1.
+                - User: What are the last announcements from Microsoft.
+                - You: I will fetch the latest tech news from https://blogs.microsoft.com/feed/
+            2.
+                - User: I want the latest news from Google, AWS and Azure.
+                - You: I will fetch the latest tech news from https://blog.google/rss/ , https://aws.amazon.com/blogs/aws/feed/ and https://azure.microsoft.com/en-us/blog/feed/
             
-        If the RSS feed can't be retrieved, return a dictionary with the status set to "failed" and a message indicating the error.
+        If the user explictly provides an URI, use it to fetch the feed.
+        
+        Example :
+            - User: What are the news from https://blog.google/rss/ , https://aws.amazon.com/blogs/aws/feed/ and https://azure.microsoft.com/en-us/blog/feed/
+            - You: I will fetch the latest tech news from https://blog.google/rss/ , https://aws.amazon.com/blogs/aws/feed/ and https://azure.microsoft.com/en-us/blog/feed/
         """
     ),
     output_key="news_feed",

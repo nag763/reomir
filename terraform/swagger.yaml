@@ -108,6 +108,7 @@ paths:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
         address: "${CLOUDRUN_AGENT_URL}/run" # Replace with actual URL
+        deadline: 60.0
       responses:
         "200":
           description: "Successful operation"
@@ -119,7 +120,7 @@ paths:
       summary: "CORS preflight for users endpoint"
       operationId: "optionsAgentRun"
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}/run" # Point to the same backend
+        address: "${CLOUDRUN_AGENT_URL}/run" # Point to the same backend 
       responses:
         "200":
           description: "Successful CORS preflight"

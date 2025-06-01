@@ -9,9 +9,8 @@ import ChatMessageInput from '@/components/ChatMessageInput';
 import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService';
 
 const predefinedSuggestions = [
-  'Help me add a new member to my organization.',
-  'What are my current project statuses?',
-  'Show me technology news from the last 24 hours.',
+  'What are the latest updates from the major cloud providers over the past 24 hours ?',
+  "What are Google's past week announcements ?",
 ];
 
 export default function Dashboard() {

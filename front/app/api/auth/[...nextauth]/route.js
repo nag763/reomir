@@ -76,7 +76,6 @@ export const authOptions = {
       return refreshAccessToken(token);
     },
     async session({ session, token }) {
-      session.user = token.user;
       session.accessToken = token.accessToken;
       session.error = token.error;
       session.idToken = token.idToken;

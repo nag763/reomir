@@ -47,7 +47,9 @@ describe('callAuthenticatedApi', () => {
     expect(fetchSpy).toHaveBeenCalledWith(
       `${mockApiGatewayUrl}/api/v1/${endpoint}`,
       expect.objectContaining({
-        headers: expect.objectContaining({ Authorization: 'Bearer valid-token' }),
+        headers: expect.objectContaining({
+          Authorization: 'Bearer valid-token',
+        }),
       }),
     );
     expect(result).toEqual({ success: true });
@@ -93,9 +95,14 @@ describe('callAuthenticatedApi', () => {
     });
 
     // Refresh call (forced) - fails
-    getSession.mockResolvedValueOnce({ idToken: null, error: 'RefreshFailedDude' });
+    getSession.mockResolvedValueOnce({
+      idToken: null,
+      error: 'RefreshFailedDude',
+    });
 
-    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow('RefreshFailedDude');
+    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow(
+      'RefreshFailedDude',
+    );
 
     expect(getSession).toHaveBeenCalledTimes(2); // Initial + forced refresh
     expect(fetchSpy).toHaveBeenCalledTimes(1); // Only the initial fetch
@@ -109,7 +116,9 @@ describe('callAuthenticatedApi', () => {
       json: async () => ({ message: 'Internal Server Error' }),
     });
 
-    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow('Internal Server Error');
+    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow(
+      'Internal Server Error',
+    );
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -135,7 +144,9 @@ describe('callAuthenticatedApi', () => {
       json: async () => ({ message: 'Unauthorized attempt 2' }),
     });
 
-    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow('Unauthorized attempt 2');
+    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow(
+      'Unauthorized attempt 2',
+    );
     expect(getSession).toHaveBeenCalledTimes(3);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
@@ -166,10 +177,14 @@ describe('callAuthenticatedApi', () => {
 
   it('should throw error if session or idToken is missing', async () => {
     getSession.mockResolvedValueOnce(null); // No session
-    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow('Authentication required.');
+    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow(
+      'Authentication required.',
+    );
 
     getSession.mockResolvedValueOnce({ idToken: null }); // Session exists but no idToken
-    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow('Authentication required.');
+    await expect(callAuthenticatedApi(endpoint, options)).rejects.toThrow(
+      'Authentication required.',
+    );
 
     expect(fetchSpy).not.toHaveBeenCalled();
   });

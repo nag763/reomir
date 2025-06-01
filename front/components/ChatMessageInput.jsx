@@ -58,7 +58,6 @@ const ChatMessageInput = forwardRef(
 
     const displaySuggestions =
       showSuggestionsCondition && inputValue === '' && suggestions.length > 0;
-    console.log({ displaySuggestions, suggestions });
 
     return (
       <footer className="p-4 border-t border-gray-800 mt-auto sticky bottom-0 bg-gray-900/80 backdrop-blur-xs z-40">

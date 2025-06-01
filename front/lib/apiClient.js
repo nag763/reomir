@@ -2,6 +2,21 @@
 
 import { getSession } from 'next-auth/react'; // Can be used outside components
 
+/**
+ * Calls an authenticated API endpoint through the API Gateway.
+ * It automatically retrieves the session ID token and adds it to the Authorization header.
+ *
+ * @async
+ * @param {string} endpoint - The specific API endpoint path (e.g., 'chat', 'documents').
+ * @param {RequestInit} [options={}] - Standard `fetch` options (method, body, custom headers, etc.).
+ *                                   The body will be JSON.stringified if provided.
+ * @param {string} [version='v1'] - The API version string (e.g., 'v1', 'v2').
+ * @returns {Promise<any>} A promise that resolves with the JSON response from the API.
+ *                         Returns `null` for 204 No Content responses.
+ * @throws {Error} If authentication fails (no session or ID token), if the API Gateway URL is not configured,
+ *                 or if the API returns a non-OK status. The error object will contain `response` and `data` properties
+ *                 from the server if available.
+ */
 export async function callAuthenticatedApi(
   endpoint,
   options = {},

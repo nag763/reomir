@@ -138,7 +138,6 @@ perform_deploy() {
             --source=. \
             --entry-point=handler \
             --trigger-http \
-            --allow-unauthenticated # Add other flags like --env-vars-file, etc. as needed
 
         if [ $? -eq 0 ]; then
             echo "✅ Successfully deployed function '$function_name'."

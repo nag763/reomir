@@ -19,7 +19,7 @@ export default function Dashboard() {
   const { profile } = useUserProfile();
 
   const determinedUserId =
-    profile?.id || authSession?.user?.id || 'anonymous_user';
+    profile?.uid || authSession?.user?.id || 'anonymous_user';
   const appName = 'coordinator';
 
   const [chatSessionId, setChatSessionId] = useState(null);

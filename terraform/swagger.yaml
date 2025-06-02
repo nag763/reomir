@@ -67,13 +67,13 @@ securityDefinitions:
 
 paths:
   /api/v1/agent/session: 
-    post:
+    get:
       summary: "Performs an action in the reomir-agent"
       operationId: "acquireAgentSession"
       security:
         - google_id_token_auth: [] # Applies the 'google_id_token_auth' security to this path
       x-google-backend:
-        address: "${CLOUDRUN_AGENT_URL}/apps/coordinator/users/user/sessions" # Replace with actual URL
+        address: "${CLOUFRUN_SESSION_MAPPER_URL}" # Replace with actual URL
       responses:
         "200":
           description: "Successful operation"

@@ -16,14 +16,10 @@ export const acquireChatSession = async (determinedUserId, appName) => {
     'app:',
     appName,
   );
-  // The backend might infer userId from the auth token, or you might need to send it.
-  // If your API expects a body for session creation, include it here.
-  // For example:
-  // const body = { userId: determinedUserId, appName: appName };
+
   const response = await callAuthenticatedApi('agent/session', {
-    method: 'POST',
-    // body: JSON.stringify(body), // If your API expects a body
-    // headers: { 'Content-Type': 'application/json' }, // If sending a body
+    method: 'GET',
+    headers: { 'X-App': 'coordinator' },
   });
 
   if (!response || !response.id) {
@@ -54,7 +50,7 @@ export const sendChatMessage = async (
 ) => {
   const payload = {
     appName: appName,
-    userId: 'user', // Or determinedUserId, depending on backend requirements for this field
+    userId: determinedUserId, // Or determinedUserId, depending on backend requirements for this field
     sessionId: sessionId,
     newMessage: {
       role: 'user',

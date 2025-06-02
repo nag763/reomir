@@ -192,6 +192,23 @@ module "service_account_apigw" {
   ]
 }
 
+# Service account for API Gateway to invoke backend services.
+module "service_account_agent_mapper" {
+  source = "./modules/service_account"
+
+  sa_id = "agentmapper"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/run.invoker"
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
 
 # ------------------------------------------------------------------------------
 # Module for managing the service account for the frontend Cloud Run service
@@ -348,6 +365,28 @@ module "function_user" {
   entry_point   = "handler"      # Entry point function in the code
 }
 
+# Deploys the Cloud Function for user management.
+module "function_session_mapper" {
+  source = "./modules/functions"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
+
+  bucket_name   = module.function_bucket.name
+  bucket_object = "reomir-session-mapper.zip"
+
+  environment_variables = {
+    LOG_EXECUTION_ID   = "true"
+    CLOUDRUN_AGENT_URL = module.cloudrun_agent.url
+    SA_PRINCIPAL       = module.service_account_agent_mapper.email
+  }
+
+  service_account_email = module.service_account_agent_mapper.email
+
+  function_name = "reomir-session-mapper"
+  entry_point   = "handler"
+}
+
 # Deploys the API Gateway to expose backend services.
 module "api_gateway" {
   source = "./modules/api_gateway"
@@ -357,9 +396,10 @@ module "api_gateway" {
 
 
   template_vars = {
-    CLOUDRUN_AGENT_URL     = module.cloudrun_agent.url
-    CLOUDFUN_USER_URL      = module.function_user.url
-    GOOGLE_OAUTH_CLIENT_ID = var.secrets["GOOGLE_CLIENT_ID"]
+    CLOUDRUN_AGENT_URL          = module.cloudrun_agent.url
+    CLOUDFUN_USER_URL           = module.function_user.url
+    GOOGLE_OAUTH_CLIENT_ID      = var.secrets["GOOGLE_CLIENT_ID"]
+    CLOUFRUN_SESSION_MAPPER_URL = module.function_session_mapper.url
   }
 
   service_account_email = module.service_account_apigw.email
@@ -367,6 +407,7 @@ module "api_gateway" {
   depends_on = [
     module.cloudrun_agent,
     module.cloudrun_front,
+    module.function_session_mapper,
     module.service_account_gh,
     module.service_account_front,
     module.wif

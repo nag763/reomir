@@ -27,7 +27,7 @@ resource "google_cloudfunctions2_function" "function" {
     max_instance_request_concurrency = 1
     min_instance_count               = 0
 
-
+    service_account_email = var.service_account_email
   }
 }
 

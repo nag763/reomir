@@ -1,7 +1,6 @@
-from google.adk.agents import SequentialAgent, Agent
-from google.adk.tools.agent_tool import AgentTool
-
 from feedparser import parse
+from google.adk.agents import Agent, SequentialAgent
+from google.adk.tools.agent_tool import AgentTool
 
 
 def fetch_feed(uri: str) -> dict:

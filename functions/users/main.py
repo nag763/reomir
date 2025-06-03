@@ -15,7 +15,6 @@ import functions_framework
 from flask import request
 from google.cloud import firestore
 
-
 db = firestore.Client()
 
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")

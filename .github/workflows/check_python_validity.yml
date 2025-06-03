@@ -33,9 +33,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install pyink
+      - name: Install pyink and isort
         run: |
-          pip install pyink
+          pip install pyink isort
 
       - name: Detect changed Python files
         id: detect_changes
@@ -70,6 +70,34 @@ jobs:
         if: env.CHANGED_FILES == ''
         run: |
           echo "No Python files changed. Skipping pyink check."
+
+      - name: Run isort on changed files
+        if: env.CHANGED_FILES != ''
+        run: |
+          echo "Changed Python files:"
+          echo "$CHANGED_FILES"
+
+          # Run isort --check-only
+          set +e
+          isort --check-only --settings-path pyproject.toml $CHANGED_FILES
+          RESULT=$?
+          set -e
+
+          if [ $RESULT -ne 0 ]; then
+            echo ""
+            echo "❌ Isort import sorting check failed!"
+            echo "👉 To fix sorting, run locally:"
+            echo ""
+            echo "    isort --settings-path pyproject.toml $CHANGED_FILES"
+            echo ""
+            exit $RESULT
+          fi
+
+      - name: No changed Python files detected for isort
+        if: env.CHANGED_FILES == ''
+        run: |
+          echo "No Python files changed. Skipping isort check."
+
 
   python-tests:
     runs-on: ubuntu-latest

@@ -4,13 +4,12 @@ import logging
 import os
 
 import functions_framework
-from flask import request
-import requests
-
 # Import Google Auth libraries for impersonation
 import google.auth
 import google.auth.transport.requests
 import google.oauth2.id_token
+import requests
+from flask import request
 
 # Note: google.oauth2.id_token is NOT directly used if fetching ID token via impersonated_credentials
 

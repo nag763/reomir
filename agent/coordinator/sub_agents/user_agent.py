@@ -1,10 +1,11 @@
+from typing import Optional
+
 from google.adk.agents import Agent
+from google.adk.agents.callback_context import CallbackContext
 from google.adk.tools import ToolContext
 from google.adk.tools.agent_tool import AgentTool
 from google.cloud import firestore
-from google.adk.agents.callback_context import CallbackContext
 from google.genai import types
-from typing import Optional
 
 
 def check_if_agent_should_run(

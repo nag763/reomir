@@ -1,6 +1,7 @@
-import json
 import base64
+import json
 from unittest import mock
+
 import pytest
 
 # Patch google.cloud.firestore.Client BEFORE main is imported.
@@ -8,9 +9,9 @@ import pytest
 firestore_client_patcher = mock.patch("google.cloud.firestore.Client")
 MockFirestoreClientGlobal = firestore_client_patcher.start()
 
+import main as main_module  # Import the module itself to access main_module.db
 # Now import main. main.py's "db = firestore.Client()" should use MockFirestoreClientGlobal
 from main import handler
-import main as main_module  # Import the module itself to access main_module.db
 
 
 @pytest.fixture(autouse=True)

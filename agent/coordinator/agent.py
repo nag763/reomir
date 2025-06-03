@@ -8,7 +8,6 @@ from google.adk.agents import Agent
 from .sub_agents.tech_news_agent import tech_news_agent
 from .sub_agents.user_agent import user_agent
 
-
 root_agent = Agent(
     name="coordinator",
     model="gemini-2.0-flash",

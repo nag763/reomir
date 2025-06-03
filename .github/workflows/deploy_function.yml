@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        function: ["users"] # Define which function subdirectories to process
+        function: ["users", "session-mapper"] # Define which function subdirectories to process
     permissions:
       contents: "read"
       id-token: "write"

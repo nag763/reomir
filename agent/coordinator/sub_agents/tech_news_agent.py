@@ -1,6 +1,5 @@
 from feedparser import parse
 from google.adk.agents import Agent, SequentialAgent
-from google.adk.tools.agent_tool import AgentTool
 
 
 def fetch_feed(uri: str) -> dict:
@@ -59,7 +58,7 @@ tech_news_retriever = Agent(
         """
     ),
     output_key="news_feed",
-    tools=[fetch_feed, AgentTool(user_retriever)],
+    tools=[fetch_feed],
 )
 
 tech_news_summarizer = Agent(

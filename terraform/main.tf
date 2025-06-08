@@ -387,6 +387,29 @@ module "function_session_mapper" {
   entry_point   = "handler"
 }
 
+# Deploys the Cloud Function for GitHub integration.
+module "function_github_integration" {
+  source = "./modules/functions"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
+
+  bucket_name   = module.function_bucket.name
+  bucket_object = "reomir-github-integration.zip" # Will be created by build_and_zip.sh
+
+  environment_variables = {
+    LOG_EXECUTION_ID    = "true"
+    GITHUB_CLIENT_ID    = "" # Placeholder - to be configured via secrets
+    GITHUB_CLIENT_SECRET = "" # Placeholder - to be configured via secrets
+    FRONTEND_URL        = "" # Placeholder - to be configured as needed
+    API_GATEWAY_BASE_URL = module.api_gateway.url # Pass the gateway URL
+  }
+
+  function_name = "github-integration-function"
+  entry_point   = "handler"
+  # service_account_email = # Optional: Add if a specific SA is needed, otherwise uses default
+}
+
 # Deploys the API Gateway to expose backend services.
 module "api_gateway" {
   source = "./modules/api_gateway"
@@ -398,6 +421,7 @@ module "api_gateway" {
   template_vars = {
     CLOUDRUN_AGENT_URL          = module.cloudrun_agent.url
     CLOUDFUN_USER_URL           = module.function_user.url
+    CLOUDFUN_GITHUB_URL         = module.function_github_integration.url # Add new function URL
     GOOGLE_OAUTH_CLIENT_ID      = var.secrets["GOOGLE_CLIENT_ID"]
     CLOUFRUN_SESSION_MAPPER_URL = module.function_session_mapper.url
   }

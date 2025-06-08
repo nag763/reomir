@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useUserProfile } from '@/components/UserProfileProvider';
+import GitHubConnectPopup from '@/components/GitHubConnectPopup'; // Added
 import ChatMessagesDisplay from '@/components/ChatMessagesDisplay';
 import ChatMessageInput from '@/components/ChatMessageInput';
 import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService';
@@ -28,9 +29,23 @@ export default function Dashboard() {
   const [isBotTyping, setIsBotTyping] = useState(false); // For typing indicator
   const [error, setError] = useState(null);
 
+  // State for GitHub Connect Popup
+  const [showGitHubConnectPopup, setShowGitHubConnectPopup] = useState(false);
+
+
   useEffect(() => {
     document.title = 'Dashboard - Chat';
   }, []);
+
+  useEffect(() => {
+    if (profile && !profile.isLoadingProfile && !profile.github_connected) {
+      const dismissed = localStorage.getItem('hasDismissedGitHubPopup');
+      if (dismissed !== 'true') {
+        setShowGitHubConnectPopup(true);
+      }
+    }
+  }, [profile]);
+
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -146,24 +161,50 @@ export default function Dashboard() {
 
   const isNewConversation = messages.length === 0;
 
+  const handleConnectGitHubFromPopup = () => {
+    localStorage.setItem('hasDismissedGitHubPopup', 'true');
+    setShowGitHubConnectPopup(false);
+    // Redirect to GitHub connection initiation URL
+    window.location.href = '/api/v1/github/connect';
+  };
+
+  const handleClosePopup = () => {
+    localStorage.setItem('hasDismissedGitHubPopup', 'true');
+    setShowGitHubConnectPopup(false);
+  };
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <ChatMessagesDisplay messages={messages} isBotTyping={isBotTyping} />
-      {error &&
-        !messages.find(
-          (msg) => msg.role === 'system' && msg.text.includes(error),
-        ) && (
-          <div className="shrink-0 p-1 text-center text-xs text-red-500">
-            {error}
-          </div>
-        )}
-      <ChatMessageInput
-        ref={commandInputRef}
-        suggestions={predefinedSuggestions}
-        showSuggestionsCondition={isNewConversation}
-        onSendMessage={handleSendMessage}
-        isLoading={isLoading} // This prop disables the input during any loading
+    <>
+      <GitHubConnectPopup
+        open={showGitHubConnectPopup}
+        onOpenChange={handleClosePopup} // Handles closing via X, overlay click, or Esc
+        onConnect={handleConnectGitHubFromPopup}
       />
-    </div>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* Dashboard heading if needed, or keep existing chat UI as primary */}
+        {messages.length === 0 && !isLoading && (
+           <div className="p-4 text-center">
+             <h1 className="text-xl text-gray-400">Dashboard</h1>
+             <p className="text-sm text-gray-500">Start a conversation or explore features.</p>
+           </div>
+        )}
+        <ChatMessagesDisplay messages={messages} isBotTyping={isBotTyping} />
+        {error &&
+          !messages.find(
+            (msg) => msg.role === 'system' && msg.text.includes(error),
+          ) && (
+            <div className="shrink-0 p-1 text-center text-xs text-red-500">
+              {error}
+            </div>
+          )}
+        <ChatMessageInput
+          ref={commandInputRef}
+          suggestions={predefinedSuggestions}
+          showSuggestionsCondition={isNewConversation}
+          onSendMessage={handleSendMessage}
+          isLoading={isLoading} // This prop disables the input during any loading
+        />
+      </div>
+    </>
   );
 }

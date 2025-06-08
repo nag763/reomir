@@ -100,6 +100,151 @@ paths:
               type: string
             Access-Control-Max-Age:
               type: integer
+
+  /api/v1/github/connect:
+    get:
+      summary: "Initiates the GitHub connection flow"
+      operationId: "githubConnect"
+      security:
+        - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/connect"
+      responses:
+        "200":
+          description: "Successful operation - typically a redirect to GitHub"
+        "401":
+          $ref: "#/responses/UnauthorizedError"
+        "500":
+          $ref: "#/responses/InternalServerError"
+    options:
+      summary: "CORS preflight for GitHub connect endpoint"
+      operationId: "optionsGithubConnect"
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/connect"
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: "string"
+              default: "GET, OPTIONS"
+            Access-Control-Max-Age:
+              type: integer
+
+  /api/v1/github/callback:
+    get:
+      summary: "Handles the callback from GitHub after authorization"
+      operationId: "githubCallback"
+      # This endpoint is called by GitHub, typically doesn't need token auth from user
+      # However, the function itself should validate the 'state' parameter
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/callback"
+      responses:
+        "200":
+          description: "Successful callback processing - typically redirects to frontend"
+        "400":
+          description: "Bad Request - e.g., state mismatch, error from GitHub"
+        "500":
+          $ref: "#/responses/InternalServerError"
+    options:
+      summary: "CORS preflight for GitHub callback endpoint"
+      operationId: "optionsGithubCallback"
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/callback"
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*" # Or be more restrictive if needed
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: "string"
+              default: "GET, OPTIONS"
+            Access-Control-Max-Age:
+              type: integer
+
+  /api/v1/github/status:
+    get:
+      summary: "Checks the status of the GitHub integration for the user"
+      operationId: "githubStatus"
+      security:
+        - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/status"
+      responses:
+        "200":
+          description: "Successful operation - returns integration status"
+          # Define schema for status response later
+        "401":
+          $ref: "#/responses/UnauthorizedError"
+        "500":
+          $ref: "#/responses/InternalServerError"
+    options:
+      summary: "CORS preflight for GitHub status endpoint"
+      operationId: "optionsGithubStatus"
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/status"
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: "string"
+              default: "GET, OPTIONS"
+            Access-Control-Max-Age:
+              type: integer
+
+  /api/v1/github/disconnect:
+    delete:
+      summary: "Disconnects the GitHub integration for the user"
+      operationId: "githubDisconnect"
+      security:
+        - google_id_token_auth: []
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/disconnect"
+      responses:
+        "200":
+          description: "Successful operation - GitHub integration disconnected"
+        "401":
+          $ref: "#/responses/UnauthorizedError"
+        "500":
+          $ref: "#/responses/InternalServerError"
+    options:
+      summary: "CORS preflight for GitHub disconnect endpoint"
+      operationId: "optionsGithubDisconnect"
+      x-google-backend:
+        address: "${CLOUDFUN_GITHUB_URL}/api/v1/github/disconnect"
+      responses:
+        "200":
+          description: "Successful CORS preflight"
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+              default: "*"
+            Access-Control-Allow-Headers:
+              type: "string"
+              default: "Content-Type, Authorization"
+            Access-Control-Allow-Methods:
+              type: "string"
+              default: "DELETE, OPTIONS"
+            Access-Control-Max-Age:
+              type: integer
   /api/v1/agent/run: 
     post:
       summary: "Performs an action in the reomir-agent"

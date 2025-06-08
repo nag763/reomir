@@ -26,9 +26,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { FeedbackAlert } from '@/components/FeedbackAlert'; // Suggested import
-import { User, Trash2, AlertTriangle, LogOut } from 'lucide-react';
+import { User, Trash2, AlertTriangle, LogOut, Github } from 'lucide-react'; // Added Github
 import { useUserProfile } from '@/components/UserProfileProvider';
 import { signOut, useSession } from 'next-auth/react';
+import { callAuthenticatedApi } from '@/lib/apiClient'; // Added
+// import { useRouter } from 'next/navigation'; // Potentially needed for query params
 
 const FEEDBACK_TIMEOUT = 3000;
 
@@ -44,6 +46,12 @@ export default function SettingsPage() {
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  // GitHub specific state
+  const [isGitHubConnecting, setIsGitHubConnecting] = useState(false);
+  const [isGitHubDisconnecting, setIsGitHubDisconnecting] = useState(false);
+  const [githubError, setGithubError] = useState('');
+  // const router = useRouter(); // If needed for query params
 
   const inputRef = useRef(null);
 
@@ -79,6 +87,34 @@ export default function SettingsPage() {
       return () => clearTimeout(timer);
     }
   }, [feedback.message]);
+
+  // Effect to handle GitHub callback query parameters
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const githubConnected = searchParams.get('github_connected');
+    const githubErrorParam = searchParams.get('github_error');
+
+    if (githubConnected === 'true') {
+      setFeedback({ message: 'GitHub connected successfully!', type: 'success' });
+      profile.refetchProfile(); // refetchProfile is part of the profile object from context
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (githubErrorParam) {
+      let errorMessage = 'An unknown error occurred with GitHub integration.';
+      if (githubErrorParam === 'missing_params') errorMessage = 'GitHub connection failed: Missing parameters.';
+      else if (githubErrorParam === 'config_error') errorMessage = 'GitHub connection failed: Server configuration error.';
+      else if (githubErrorParam === 'token_exchange_failed') errorMessage = 'GitHub connection failed: Could not get access token.';
+      else if (githubErrorParam === 'user_fetch_failed') errorMessage = 'GitHub connection failed: Could not fetch user details.';
+      else if (githubErrorParam === 'api_error') errorMessage = 'GitHub connection failed: API communication error.';
+      else if (githubErrorParam === 'internal_error') errorMessage = 'GitHub connection failed: Internal server error.';
+
+      setGithubError(errorMessage); // Display in the GitHub card
+      setFeedback({ message: errorMessage, type: 'error' }); // Also show in global feedback
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [profile.refetchProfile]); // Added profile.refetchProfile to dependency array
+
 
   const handleProfileUpdate = async () => {
     if (newDisplayName === derivedUser.name || !newDisplayName.trim()) {
@@ -131,6 +167,56 @@ export default function SettingsPage() {
       setIsDeletingAccount(false);
     }
   };
+
+  const handleGitHubConnect = async () => {
+    setIsGitHubConnecting(true);
+    setGithubError('');
+    setFeedback({ message: '', type: 'info' }); // Clear global feedback
+
+    try {
+      // The backend /api/v1/github/connect is expected to return a 302 redirect directly
+      // if it were called from a simple <a href>, but with fetch/callAuthenticatedApi,
+      // we need to handle the response. If the backend sends JSON with a redirect_url:
+      // For this setup, the backend function for connect directly returns a Flask redirect,
+      // which will be followed by the browser if the call is made by navigating (e.g. window.location.href).
+      // If callAuthenticatedApi is used, and it tries to parse JSON from a redirect response, it might fail.
+      // The simplest way is to make the connect endpoint callable by direct navigation.
+      // So, instead of callAuthenticatedApi, we construct the URL and navigate.
+      // The API Gateway will enforce authentication.
+
+      // This assumes your API Gateway URL is correctly configured.
+      // It might be better to get this base URL from an environment variable if it's consistent.
+      const connectUrl = `/api/v1/github/connect`; // Relative URL, browser handles the host
+      window.location.href = connectUrl;
+      // No need to set isGitHubConnecting to false here, as the page will navigate away.
+    } catch (error) {
+      console.error('GitHub Connect Error:', error);
+      const errMsg = error.response?.data?.error || error.message || 'Failed to initiate GitHub connection.';
+      setGithubError(errMsg);
+      setFeedback({ message: errMsg, type: 'error' });
+      setIsGitHubConnecting(false);
+    }
+  };
+
+  const handleGitHubDisconnect = async () => {
+    setIsGitHubDisconnecting(true);
+    setGithubError('');
+    setFeedback({ message: '', type: 'info' });
+
+    try {
+      await callAuthenticatedApi('github/disconnect', { method: 'DELETE' });
+      setFeedback({ message: 'GitHub disconnected successfully!', type: 'success' });
+      profile.refetchProfile(); // Refresh profile to update UI
+    } catch (error) {
+      console.error('GitHub Disconnect Error:', error);
+      const errMsg = error.response?.data?.error || error.message || 'Failed to disconnect GitHub.';
+      setGithubError(errMsg);
+      setFeedback({ message: errMsg, type: 'error' });
+    } finally {
+      setIsGitHubDisconnecting(false);
+    }
+  };
+
 
   const isConfirmDeleteDisabled = confirmInput !== 'delete me';
 
@@ -216,6 +302,57 @@ export default function SettingsPage() {
           )}
         </CardFooter>
       </Card>
+
+      {/* GitHub Integration Card */}
+      <Card className="border-gray-700 bg-gray-800 text-gray-100">
+        <CardHeader>
+          <CardTitle className="flex items-center text-xl">
+            <Github className="mr-3 h-6 w-6 text-purple-400" /> GitHub Integration
+          </CardTitle>
+          <CardDescription className="text-gray-400">
+            Connect your GitHub account to link repositories and activities.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {profile.isLoadingProfile ? (
+            <p>Loading GitHub status...</p>
+          ) : profile.github_connected ? (
+            <div>
+              <p className="text-green-400">
+                Successfully connected as:{' '}
+                <strong className="font-semibold">{profile.github_login || 'GitHub User'}</strong>
+              </p>
+              {/* Optionally display GitHub ID or other info if available and needed */}
+              {/* <p className="text-xs text-gray-500">ID: {profile.github_id}</p> */}
+            </div>
+          ) : (
+            <p>You are not connected to GitHub.</p>
+          )}
+          {githubError && (
+            <p className="text-sm text-red-500">{githubError}</p>
+          )}
+        </CardContent>
+        <CardFooter className="flex justify-end">
+          {profile.github_connected ? (
+            <Button
+              variant="destructiveOutline"
+              onClick={handleGitHubDisconnect}
+              disabled={isGitHubDisconnecting || profile.isLoadingProfile}
+            >
+              {isGitHubDisconnecting ? 'Disconnecting...' : 'Disconnect GitHub'}
+            </Button>
+          ) : (
+            <Button
+              variant="indigo"
+              onClick={handleGitHubConnect}
+              disabled={isGitHubConnecting || profile.isLoadingProfile}
+            >
+              {isGitHubConnecting ? 'Connecting...' : 'Connect to GitHub'}
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+
 
       {/* Sign Out Section */}
       <Card className="border-gray-700 bg-gray-800 text-gray-100">

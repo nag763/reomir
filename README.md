@@ -14,6 +14,15 @@ Your enterprise developer portal boosted by AI :rocket:
 
 Reomir is an AI-powered developer portal designed to streamline enterprise development workflows. It provides a centralized platform for developers to access tools, documentation, and resources, with AI assistance integrated to enhance productivity.
 
+## Features
+- **AI-Powered Assistance:** Integrates with AI to enhance developer productivity.
+- **Centralized Developer Hub:** Provides a single platform for tools, documentation, and resources.
+- **Google OAuth Integration:** Secure user authentication using Google accounts.
+- **GitHub Integration:** Connect your GitHub account to manage repositories and streamline workflows. Access and manage this in User Settings.
+- **Dynamic User Profile Management:** Allows users to manage their profile information.
+- **Terraform Managed Infrastructure:** Ensures reproducible and scalable deployments on Google Cloud.
+- **Automated CI/CD Pipeline:** Uses GitHub Actions for building and deploying services.
+
 ## Architecture
 
 The project follows a modern web architecture:
@@ -74,6 +83,16 @@ graph TD
 ## Getting Started
 
 To get Reomir up and running, please refer to the detailed [Installation Guide](INSTALL.md). The guide provides step-by-step instructions for setting up the project, including prerequisites, OAuth configuration, and Terraform deployment.
+
+### Environment Variable Overview
+Key backend services, particularly the Cloud Functions, rely on environment variables set during deployment (typically via Terraform). These include:
+*   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: For Google OAuth.
+*   `NEXTAUTH_SECRET`, `NEXTAUTH_URL`: For Next.js authentication.
+*   `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`: For the GitHub integration feature.
+*   `FRONTEND_URL`: Base URL of the deployed frontend, used by backend services for redirects.
+*   `API_GATEWAY_BASE_URL`: Base URL of the deployed API Gateway, used by backend services to construct callback URLs.
+
+Detailed setup for these, especially OAuth credentials, can be found in the [Installation Guide](INSTALL.md).
 
 ## Google Hackathon Context
 

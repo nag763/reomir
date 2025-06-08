@@ -175,6 +175,24 @@ module "service_account_gh" {
   ]
 }
 
+module "service_account_gh_fn" {
+  source = "./modules/service_account"
+
+  sa_id = "github-integration-function"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/secretmanager.secretAccessor",
+    "roles/datastore.user"
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+
 # Service account for API Gateway to invoke backend services.
 module "service_account_apigw" {
   source = "./modules/service_account"
@@ -398,16 +416,20 @@ module "function_github_integration" {
   bucket_object = "reomir-github-integration.zip" # Will be created by build_and_zip.sh
 
   environment_variables = {
-    LOG_EXECUTION_ID     = "true"
-    GITHUB_CLIENT_ID     = var.secrets["GITHUB_CLIENT_ID"]     # Placeholder - to be configured via secrets
-    GITHUB_CLIENT_SECRET = var.secrets["GITHUB_CLIENT_SECRET"] # Placeholder - to be configured via secrets
-    API_GATEWAY_BASE_URL = var.secrets["API_GATEWAY_BASE_URL"]
-    FRONTEND_URL         = module.cloudrun_front.url # Placeholder - to be configured as needed
+    LOG_EXECUTION_ID = "true"
+    FRONTEND_URL     = module.cloudrun_front.url # Placeholder - to be configured as needed
   }
 
-  function_name = "reomir-github-integration"
-  entry_point   = "handler"
-  # service_account_email = # Optional: Add if a specific SA is needed, otherwise uses default
+  secret_environment_variables = ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "API_GATEWAY_BASE_URL"]
+
+  function_name         = "reomir-github-integration"
+  entry_point           = "handler"
+  service_account_email = module.service_account_gh_fn.email
+
+  depends_on = [
+    module.service_account_gh_fn,
+    module.secret_manager
+  ]
 }
 
 # Deploys the API Gateway to expose backend services.

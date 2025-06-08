@@ -18,10 +18,20 @@ resource "google_cloudfunctions2_function" "function" {
   }
 
   service_config {
-    all_traffic_on_latest_revision   = true
-    available_cpu                    = "0.1666"
-    available_memory                 = "256Mi"
-    environment_variables            = var.environment_variables
+    all_traffic_on_latest_revision = true
+    available_cpu                  = "0.1666"
+    available_memory               = "256Mi"
+    environment_variables          = var.environment_variables
+    dynamic "secret_environment_variables" {
+      for_each = toset(var.secret_environment_variables)
+
+      content {
+        key        = secret_environment_variables.key
+        project_id = var.gcp_project
+        secret     = secret_environment_variables.key
+        version    = "latest"
+      }
+    }
     ingress_settings                 = "ALLOW_ALL"
     max_instance_count               = 20
     max_instance_request_concurrency = 1

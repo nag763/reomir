@@ -34,6 +34,12 @@ variable "environment_variables" {
   default     = {}
 }
 
+variable "secret_environment_variables" {
+  description = "A map of environment variables to set for the function."
+  type        = list(string)
+  default     = []
+}
+
 variable "service_account_email" {
   description = "The email of the service account to use for the function."
   type        = string

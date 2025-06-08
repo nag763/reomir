@@ -2,6 +2,8 @@ name: Check Pyink Formatting and Run Python Tests
 
 on:
   push:
+    branches:
+      - 'master'
     paths:
       - './agent/**/*.py'
       - './functions/**/*.py'

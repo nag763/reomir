@@ -17,15 +17,16 @@ import { Github } from 'lucide-react';
 export default function GitHubConnectPopup({ open, onOpenChange, onConnect }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px] bg-gray-800 border-gray-700 text-gray-100">
+      <DialogContent className="border-gray-700 bg-gray-800 text-gray-100 sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <Github className="mr-2 h-5 w-5 text-purple-400" />
             Connect to GitHub
           </DialogTitle>
-          <DialogDescription className="text-gray-400 pt-2">
+          <DialogDescription className="pt-2 text-gray-400">
             Enhance your experience by connecting your GitHub account. This will
-            allow future features related to your repositories and contributions.
+            allow future features related to your repositories and
+            contributions.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="pt-4">

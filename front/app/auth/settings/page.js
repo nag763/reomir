@@ -26,7 +26,15 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { FeedbackAlert } from '@/components/FeedbackAlert'; // Suggested import
-import { User, Trash2, AlertTriangle, LogOut, Github } from 'lucide-react'; // Added Github
+import {
+  User,
+  Trash2,
+  AlertTriangle,
+  LogOut,
+  Github,
+  LucideGithub,
+  GithubIcon,
+} from 'lucide-react'; // Added Github
 import { useUserProfile } from '@/components/UserProfileProvider';
 import { signOut, useSession } from 'next-auth/react';
 import { callAuthenticatedApi } from '@/lib/apiClient'; // Added
@@ -36,7 +44,8 @@ const FEEDBACK_TIMEOUT = 3000;
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const { profile, updateProfile, deleteProfile } = useUserProfile();
+  const { profile, updateProfile, deleteProfile, refetchProfile } =
+    useUserProfile();
 
   const [confirmInput, setConfirmInput] = useState('');
   const [newDisplayName, setNewDisplayName] = useState('');
@@ -95,26 +104,44 @@ export default function SettingsPage() {
     const githubErrorParam = searchParams.get('github_error');
 
     if (githubConnected === 'true') {
-      setFeedback({ message: 'GitHub connected successfully!', type: 'success' });
-      profile.refetchProfile(); // refetchProfile is part of the profile object from context
+      setFeedback({
+        message: 'GitHub connected successfully!',
+        type: 'success',
+      });
+      refetchProfile();
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
     } else if (githubErrorParam) {
       let errorMessage = 'An unknown error occurred with GitHub integration.';
-      if (githubErrorParam === 'missing_params') errorMessage = 'GitHub connection failed: Missing parameters.';
-      else if (githubErrorParam === 'config_error') errorMessage = 'GitHub connection failed: Server configuration error.';
-      else if (githubErrorParam === 'token_exchange_failed') errorMessage = 'GitHub connection failed: Could not get access token.';
-      else if (githubErrorParam === 'user_fetch_failed') errorMessage = 'GitHub connection failed: Could not fetch user details.';
-      else if (githubErrorParam === 'api_error') errorMessage = 'GitHub connection failed: API communication error.';
-      else if (githubErrorParam === 'internal_error') errorMessage = 'GitHub connection failed: Internal server error.';
-
+      switch (githubErrorParam) {
+        case 'missing_params':
+          errorMessage = 'GitHub connection failed: Missing parameters.';
+          break;
+        case 'config_error':
+          errorMessage =
+            'GitHub connection failed: Server configuration error.';
+          break;
+        case 'token_exchange_failed':
+          errorMessage =
+            'GitHub connection failed: Could not get access token.';
+          break;
+        case 'user_fetch_failed':
+          errorMessage =
+            'GitHub connection failed: Could not fetch user details.';
+          break;
+        case 'api_error':
+          errorMessage = 'GitHub connection failed: API communication error.';
+          break;
+        case 'internal_error':
+          errorMessage = 'GitHub connection failed: Internal server error.';
+          break;
+      }
       setGithubError(errorMessage); // Display in the GitHub card
       setFeedback({ message: errorMessage, type: 'error' }); // Also show in global feedback
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [profile.refetchProfile]); // Added profile.refetchProfile to dependency array
-
+  }, [refetchProfile]); // Added profile.refetchProfile to dependency array
 
   const handleProfileUpdate = async () => {
     if (newDisplayName === derivedUser.name || !newDisplayName.trim()) {
@@ -174,24 +201,81 @@ export default function SettingsPage() {
     setFeedback({ message: '', type: 'info' }); // Clear global feedback
 
     try {
-      // The backend /api/v1/github/connect is expected to return a 302 redirect directly
-      // if it were called from a simple <a href>, but with fetch/callAuthenticatedApi,
-      // we need to handle the response. If the backend sends JSON with a redirect_url:
-      // For this setup, the backend function for connect directly returns a Flask redirect,
-      // which will be followed by the browser if the call is made by navigating (e.g. window.location.href).
-      // If callAuthenticatedApi is used, and it tries to parse JSON from a redirect response, it might fail.
-      // The simplest way is to make the connect endpoint callable by direct navigation.
-      // So, instead of callAuthenticatedApi, we construct the URL and navigate.
-      // The API Gateway will enforce authentication.
+      const connectUrl = `github/connect`; // Relative URL, browser handles the host
+      let data = await callAuthenticatedApi(connectUrl, { method: 'GET' });
 
-      // This assumes your API Gateway URL is correctly configured.
-      // It might be better to get this base URL from an environment variable if it's consistent.
-      const connectUrl = `/api/v1/github/connect`; // Relative URL, browser handles the host
-      window.location.href = connectUrl;
+      // Check if the redirectUrl exists in the response
+      if (data && data.redirectUrl) {
+        console.log('Redirect URL received:', data.redirectUrl);
+
+        // Open the URL in a new window/tab
+        const popup = window.open(
+          data.redirectUrl,
+          '_blank',
+          'width=600,height=800,noopener,noreferrer,popup=true,left=' +
+            (window.screen.width / 2 - 300) +
+            ',top=' +
+            (window.screen.height / 2 - 400),
+        );
+        // 1. Listen for a success message from the popup
+        const handleMessage = (event) => {
+          // IMPORTANT: Validate the origin of the message for security
+          // It should come from the same origin as your main app, as the callback now sends the message
+          if (event.origin !== window.location.origin) {
+            console.warn(`Message from unexpected origin: ${event.origin}`);
+            return;
+          }
+
+          if (
+            event.data?.source === 'github-popup' &&
+            event.data?.status === 'success'
+          ) {
+            console.log('GitHub connection successful! Refetching profile.');
+            setFeedback({
+              message: 'GitHub connected successfully!',
+              type: 'success',
+            });
+            refetchProfile();
+
+            // Clean up everything
+            window.removeEventListener('message', handleMessage);
+            clearInterval(popupPoller);
+            setIsGitHubConnecting(false);
+          }
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        // 2. Fallback: Poll to see if the user manually closed the popup
+        const popupPoller = setInterval(() => {
+          if (popup && popup.closed) {
+            console.log(
+              'Popup closed by user or flow ended. Refetching profile.',
+            );
+            // We refetch as a safety measure. If the postMessage worked, this is redundant but harmless.
+            // If the user closed the popup manually, this is essential.
+            refetchProfile();
+
+            // Clean up everything
+            clearInterval(popupPoller);
+            window.removeEventListener('message', handleMessage);
+            setIsGitHubConnecting(false);
+          }
+        }, 500);
+      } else {
+        const errMsg = 'No redirect URL provided in the response.';
+        setGithubError(errMsg);
+        setFeedback({ message: errMsg, type: 'error' });
+        setIsGitHubConnecting(false);
+      }
+
       // No need to set isGitHubConnecting to false here, as the page will navigate away.
     } catch (error) {
       console.error('GitHub Connect Error:', error);
-      const errMsg = error.response?.data?.error || error.message || 'Failed to initiate GitHub connection.';
+      const errMsg =
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to initiate GitHub connection.';
       setGithubError(errMsg);
       setFeedback({ message: errMsg, type: 'error' });
       setIsGitHubConnecting(false);
@@ -205,18 +289,23 @@ export default function SettingsPage() {
 
     try {
       await callAuthenticatedApi('github/disconnect', { method: 'DELETE' });
-      setFeedback({ message: 'GitHub disconnected successfully!', type: 'success' });
-      profile.refetchProfile(); // Refresh profile to update UI
+      setFeedback({
+        message: 'GitHub disconnected successfully!',
+        type: 'success',
+      });
+      refetchProfile();
     } catch (error) {
       console.error('GitHub Disconnect Error:', error);
-      const errMsg = error.response?.data?.error || error.message || 'Failed to disconnect GitHub.';
+      const errMsg =
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to disconnect GitHub.';
       setGithubError(errMsg);
       setFeedback({ message: errMsg, type: 'error' });
     } finally {
       setIsGitHubDisconnecting(false);
     }
   };
-
 
   const isConfirmDeleteDisabled = confirmInput !== 'delete me';
 
@@ -307,7 +396,8 @@ export default function SettingsPage() {
       <Card className="border-gray-700 bg-gray-800 text-gray-100">
         <CardHeader>
           <CardTitle className="flex items-center text-xl">
-            <Github className="mr-3 h-6 w-6 text-purple-400" /> GitHub Integration
+            <Github className="mr-3 h-6 w-6 text-purple-400" /> GitHub
+            Integration
           </CardTitle>
           <CardDescription className="text-gray-400">
             Connect your GitHub account to link repositories and activities.
@@ -320,7 +410,9 @@ export default function SettingsPage() {
             <div>
               <p className="text-green-400">
                 Successfully connected as:{' '}
-                <strong className="font-semibold">{profile.github_login || 'GitHub User'}</strong>
+                <strong className="font-semibold">
+                  {profile.github_login || 'GitHub User'}
+                </strong>
               </p>
               {/* Optionally display GitHub ID or other info if available and needed */}
               {/* <p className="text-xs text-gray-500">ID: {profile.github_id}</p> */}
@@ -328,9 +420,7 @@ export default function SettingsPage() {
           ) : (
             <p>You are not connected to GitHub.</p>
           )}
-          {githubError && (
-            <p className="text-sm text-red-500">{githubError}</p>
-          )}
+          {githubError && <p className="text-sm text-red-500">{githubError}</p>}
         </CardContent>
         <CardFooter className="flex justify-end">
           {profile.github_connected ? (
@@ -339,20 +429,21 @@ export default function SettingsPage() {
               onClick={handleGitHubDisconnect}
               disabled={isGitHubDisconnecting || profile.isLoadingProfile}
             >
+              <GithubIcon />
               {isGitHubDisconnecting ? 'Disconnecting...' : 'Disconnect GitHub'}
             </Button>
           ) : (
             <Button
-              variant="indigo"
+              variant="outline"
               onClick={handleGitHubConnect}
               disabled={isGitHubConnecting || profile.isLoadingProfile}
             >
+              <GithubIcon />
               {isGitHubConnecting ? 'Connecting...' : 'Connect to GitHub'}
             </Button>
           )}
         </CardFooter>
       </Card>
-
 
       {/* Sign Out Section */}
       <Card className="border-gray-700 bg-gray-800 text-gray-100">

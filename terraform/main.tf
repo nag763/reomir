@@ -398,14 +398,14 @@ module "function_github_integration" {
   bucket_object = "reomir-github-integration.zip" # Will be created by build_and_zip.sh
 
   environment_variables = {
-    LOG_EXECUTION_ID    = "true"
-    GITHUB_CLIENT_ID    = "" # Placeholder - to be configured via secrets
-    GITHUB_CLIENT_SECRET = "" # Placeholder - to be configured via secrets
-    FRONTEND_URL        = "" # Placeholder - to be configured as needed
-    API_GATEWAY_BASE_URL = module.api_gateway.url # Pass the gateway URL
+    LOG_EXECUTION_ID     = "true"
+    GITHUB_CLIENT_ID     = var.secrets["GITHUB_CLIENT_ID"]     # Placeholder - to be configured via secrets
+    GITHUB_CLIENT_SECRET = var.secrets["GITHUB_CLIENT_SECRET"] # Placeholder - to be configured via secrets
+    API_GATEWAY_BASE_URL = var.secrets["API_GATEWAY_BASE_URL"]
+    FRONTEND_URL         = module.cloudrun_front.url # Placeholder - to be configured as needed
   }
 
-  function_name = "github-integration-function"
+  function_name = "reomir-github-integration"
   entry_point   = "handler"
   # service_account_email = # Optional: Add if a specific SA is needed, otherwise uses default
 }

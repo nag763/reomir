@@ -183,8 +183,27 @@ module "service_account_gh_fn" {
   gcp_project = google_project.reomir.project_id
 
   roles = [
-    "roles/secretmanager.secretAccessor",
-    "roles/datastore.user"
+    "roles/secretmanager.secretAccessor", # For GITHUB_CLIENT_ID etc.
+    "roles/datastore.user"              # For Firestore access
+    # KMS encrypter will be added via kms.tf
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# Service account for the 'users' function
+module "service_account_users_fn" {
+  source = "./modules/service_account"
+
+  sa_id = "users-function"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/datastore.user" # For Firestore access
+    # KMS decrypter will be added via kms.tf
   ]
 
   depends_on = [
@@ -381,6 +400,11 @@ module "function_user" {
 
   function_name = "reomir-users" # Name of the Cloud Function
   entry_point   = "handler"      # Entry point function in the code
+  service_account_email = module.service_account_users_fn.email # Assign dedicated SA
+
+  depends_on = [
+    module.service_account_users_fn # Ensure SA is created first
+  ]
 }
 
 # Deploys the Cloud Function for user management.

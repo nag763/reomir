@@ -44,3 +44,8 @@ resource "google_cloudfunctions2_function" "function" {
 output "url" {
   value = google_cloudfunctions2_function.function.url
 }
+
+output "function_service_account_email" {
+  description = "The service account email configured for this function instance."
+  value       = var.service_account_email
+}

@@ -7,12 +7,21 @@ import functions_framework
 import requests
 from flask import Flask, Response, jsonify, redirect, request
 from google.cloud import firestore
+from google.cloud import kms
 
 # Initialize Flask app
 app = Flask(__name__)
 
 # Initialize Firestore client
 db = firestore.Client()
+
+# Initialize KMS client
+KMS_CLIENT = kms.KeyManagementServiceClient()
+KMS_KEY_NAME = os.getenv("KMS_KEY_NAME")
+KMS_KEY_RING = os.getenv("KMS_KEY_RING")
+KMS_LOCATION = os.getenv("KMS_LOCATION")
+GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
+
 
 # --- Constants ---
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
@@ -35,6 +44,29 @@ logging.basicConfig(level=logging.INFO)
 
 
 # --- Helper Functions ---
+def _encrypt_data_kms(plaintext: str) -> str | None:
+    """Encrypts plaintext using KMS and returns base64 encoded ciphertext."""
+    if not all([GOOGLE_CLOUD_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME]):
+        logging.error(
+            "KMS environment variables (GOOGLE_CLOUD_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME) not fully set. Cannot encrypt."
+        )
+        return None
+    try:
+        key_path = KMS_CLIENT.crypto_key_path(
+            GOOGLE_CLOUD_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME
+        )
+        logging.info(f"Encrypting data with KMS key: {key_path}")
+        response = KMS_CLIENT.encrypt(
+            name=key_path, plaintext=plaintext.encode("utf-8")
+        )
+        ciphertext = base64.b64encode(response.ciphertext).decode("utf-8")
+        logging.info("Data successfully encrypted with KMS.")
+        return ciphertext
+    except Exception as e:
+        logging.error(f"KMS encryption failed: {e}")
+        return None
+
+
 def _get_auth_user_info(req):
     """
     Retrieves user information from the 'X-Apigateway-Api-Userinfo' header
@@ -164,6 +196,15 @@ def handle_callback_route():
                 f"{FRONTEND_URL}/auth/settings?github_error=token_exchange_failed"
             )
 
+        # Encrypt the access token
+        encrypted_access_token = _encrypt_data_kms(access_token)
+        if not encrypted_access_token:
+            logging.error("Failed to encrypt GitHub access token.")
+            return redirect(
+                f"{FRONTEND_URL}/auth/settings?github_error=encryption_failed"
+            )
+        logging.info("GitHub access token successfully encrypted.")
+
         # Get user info from GitHub
         user_api_headers = {"Authorization": f"token {access_token}"}
         logging.info(f"Fetching user info from {GITHUB_USER_API}")
@@ -185,17 +226,19 @@ def handle_callback_route():
         # Store token and GitHub info in Firestore
         user_ref = db.collection("users").document(user_id)
         user_data_to_store = {
-            "github_access_token": access_token,
+            "github_access_token": encrypted_access_token, # Store encrypted token
             "github_login": github_login,
             "github_id": str(github_id),  # Ensure ID is stored as string
             "github_connected": True,
             "github_last_updated": firestore.SERVER_TIMESTAMP,
         }
-        logging.info(f"Updating Firestore for user {user_id} with GitHub data.")
+        logging.info(
+            f"Updating Firestore for user {user_id} with GitHub data (token encrypted)."
+        )
         user_ref.set(user_data_to_store, merge=True)
 
         logging.info(
-            f"Successfully connected GitHub for user {user_id}, username {github_login}"
+            f"Successfully connected GitHub for user {user_id}, username {github_login}. Token stored with encryption."
         )
         
         # The origin of your frontend application for secure communication

@@ -32,7 +32,6 @@ export default function Dashboard() {
   // State for GitHub Connect Popup
   const [showGitHubConnectPopup, setShowGitHubConnectPopup] = useState(false);
 
-
   useEffect(() => {
     document.title = 'Dashboard - Chat';
   }, []);
@@ -45,7 +44,6 @@ export default function Dashboard() {
       }
     }
   }, [profile]);
-
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -183,10 +181,12 @@ export default function Dashboard() {
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Dashboard heading if needed, or keep existing chat UI as primary */}
         {messages.length === 0 && !isLoading && (
-           <div className="p-4 text-center">
-             <h1 className="text-xl text-gray-400">Dashboard</h1>
-             <p className="text-sm text-gray-500">Start a conversation or explore features.</p>
-           </div>
+          <div className="p-4 text-center">
+            <h1 className="text-xl text-gray-400">Dashboard</h1>
+            <p className="text-sm text-gray-500">
+              Start a conversation or explore features.
+            </p>
+          </div>
         )}
         <ChatMessagesDisplay messages={messages} isBotTyping={isBotTyping} />
         {error &&

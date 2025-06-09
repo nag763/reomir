@@ -1,6 +1,8 @@
 import base64
 import json
+import os  # Ensure os is imported for patch.dict
 from unittest import mock
+from unittest.mock import MagicMock, patch  # Added patch and MagicMock
 
 import pytest
 
@@ -93,6 +95,151 @@ def test_get_user_exists(mock_request, mock_firestore_client_instance_control):
     mock_db.collection.return_value.document.assert_called_once_with("test-user-123")
     mock_db.collection.return_value.document.return_value.get.assert_called_once()
 
+# --- Tests for KMS Decryption ---
+
+@patch.dict(
+    os.environ,
+    {
+        "KMS_KEY_NAME": "test-key",
+        "KMS_KEY_RING": "test-key-ring",
+        "KMS_LOCATION": "test-location",
+        "GOOGLE_CLOUD_PROJECT": "test-gcp-project",
+    },
+)
+@patch("main._decrypt_data_kms")
+def test_get_user_with_encrypted_token_success(
+    mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
+):
+    mock_db = mock_firestore_client_instance_control
+    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot.exists = True
+    mock_doc_snapshot.to_dict.return_value = {
+        "uid": "test-user-kms",
+        "email": "kms@example.com",
+        "github_access_token": "sample_encrypted_token_base64",
+    }
+
+    mock_decrypt_data_kms.return_value = "decrypted_access_token"
+
+    user_info = {"sub": "test-user-kms", "email": "kms@example.com"}
+    user_info_json = json.dumps(user_info)
+    user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
+    headers = {"X-Apigateway-Api-Userinfo": user_info_b64}
+    request = mock_request("GET", headers=headers)
+
+    response, status_code, _ = handler(request)
+
+    assert status_code == 200
+    assert response["uid"] == "test-user-kms"
+    assert response["github_access_token"] == "decrypted_access_token"
+    assert "github_access_token_error" not in response
+
+    mock_decrypt_data_kms.assert_called_once_with("sample_encrypted_token_base64")
+    mock_db.collection.assert_called_once_with("users")
+    mock_db.collection.return_value.document.assert_called_once_with("test-user-kms")
+
+
+@patch.dict(
+    os.environ,
+    {
+        "KMS_KEY_NAME": "test-key",
+        "KMS_KEY_RING": "test-key-ring",
+        "KMS_LOCATION": "test-location",
+        "GOOGLE_CLOUD_PROJECT": "test-gcp-project",
+    },
+)
+@patch("main._decrypt_data_kms")
+def test_get_user_with_encrypted_token_failure(
+    mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
+):
+    mock_db = mock_firestore_client_instance_control
+    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot.exists = True
+    mock_doc_snapshot.to_dict.return_value = {
+        "uid": "test-user-kms-fail",
+        "email": "kmsfail@example.com",
+        "github_access_token": "another_encrypted_token_base64",
+    }
+
+    mock_decrypt_data_kms.return_value = None  # Simulate decryption failure
+
+    user_info = {"sub": "test-user-kms-fail", "email": "kmsfail@example.com"}
+    user_info_json = json.dumps(user_info)
+    user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
+    headers = {"X-Apigateway-Api-Userinfo": user_info_b64}
+    request = mock_request("GET", headers=headers)
+
+    response, status_code, _ = handler(request)
+
+    assert status_code == 200
+    assert response["uid"] == "test-user-kms-fail"
+    assert response["github_access_token"] is None
+    assert response["github_access_token_error"] == "decryption_failed"
+
+    mock_decrypt_data_kms.assert_called_once_with("another_encrypted_token_base64")
+    mock_db.collection.assert_called_once_with("users")
+    mock_db.collection.return_value.document.assert_called_once_with("test-user-kms-fail")
+
+
+@patch("main._decrypt_data_kms")
+def test_get_user_no_github_token(
+    mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
+):
+    mock_db = mock_firestore_client_instance_control
+    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot.exists = True
+    mock_doc_snapshot.to_dict.return_value = {
+        "uid": "test-user-no-token",
+        "email": "notoken@example.com",
+        # No github_access_token field
+    }
+
+    user_info = {"sub": "test-user-no-token", "email": "notoken@example.com"}
+    user_info_json = json.dumps(user_info)
+    user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
+    headers = {"X-Apigateway-Api-Userinfo": user_info_b64}
+    request = mock_request("GET", headers=headers)
+
+    response, status_code, _ = handler(request)
+
+    assert status_code == 200
+    assert response["uid"] == "test-user-no-token"
+    assert "github_access_token" not in response # or assert response.get("github_access_token") is None
+    assert "github_access_token_error" not in response
+
+    mock_decrypt_data_kms.assert_not_called()
+
+
+@patch("main._decrypt_data_kms")
+def test_get_user_github_token_not_string(
+    mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
+):
+    mock_db = mock_firestore_client_instance_control
+    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot.exists = True
+    mock_doc_snapshot.to_dict.return_value = {
+        "uid": "test-user-invalid-token-type",
+        "email": "invalidtype@example.com",
+        "github_access_token": False, # Token is not a string
+    }
+
+    user_info = {"sub": "test-user-invalid-token-type", "email": "invalidtype@example.com"}
+    user_info_json = json.dumps(user_info)
+    user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
+    headers = {"X-Apigateway-Api-Userinfo": user_info_b64}
+    request = mock_request("GET", headers=headers)
+
+    response, status_code, _ = handler(request)
+
+    assert status_code == 200
+    assert response["uid"] == "test-user-invalid-token-type"
+    assert response["github_access_token"] is False
+    assert "github_access_token_error" not in response
+
+    mock_decrypt_data_kms.assert_not_called()
+
+
+# --- Original tests continue below ---
 
 def test_post_user_valid_data(mock_request, mock_firestore_client_instance_control):
     mock_db = mock_firestore_client_instance_control
@@ -281,6 +428,10 @@ def test_auth_header_missing_user_id_claim(
     user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
     headers = {"X-Apigateway-Api-Userinfo": user_info_b64}
     request = mock_request("GET", headers=headers)
+
+    # Need to import os for patch.dict to work if it's not already imported globally in test file
+    # For the purpose of this diff, assume os is imported. If not, it would need to be added.
+    # import os # This would be at the top of the file
 
     response, status_code, _ = handler(request)
 

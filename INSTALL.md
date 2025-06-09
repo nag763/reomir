@@ -50,11 +50,28 @@ As your project contains sensitive credentials dependent on your configuraiton, 
 secrets = {
   "GOOGLE_CLIENT_ID"     = "${THE_CLIENT_ID_CONFIGURED_STEP2}"
   "GOOGLE_CLIENT_SECRET" = "${THE_CLIENT_SECRET_CONFIGURED_STEP2}"
-  "NEXTAUTH_SECRET"      = "${RANDOM_VALUE_WITH_HIGH_ENTRHOPY}",
-  "NEXTAUTH_URL"         = "https://YOUR_FRONTEND_CLOUD_RUN_URL/api/auth" # Replace YOUR_FRONTEND_CLOUD_RUN_URL with the actual URL of your deployed frontend service. This URL is typically https://<service-name>-<project-hash>-<region>.a.run.app but can be found in the Google Cloud Console after deployment or from the output of `terraform output -raw cloudrun_front_url` (if such an output is added to your Terraform configuration).
+  "NEXTAUTH_SECRET"      = "${RANDOM_VALUE_WITH_HIGH_ENTROPY}" # Replace with a strong random string
+  "NEXTAUTH_URL"         = "https://YOUR_FRONTEND_CLOUD_RUN_URL/api/auth" # Replace YOUR_FRONTEND_CLOUD_RUN_URL
+
+  "GITHUB_CLIENT_ID"     = "${YOUR_GITHUB_OAUTH_APP_CLIENT_ID}" # From Step 2.B
+  "GITHUB_CLIENT_SECRET" = "${YOUR_GITHUB_OAUTH_APP_CLIENT_SECRET}" # From Step 2.B
+}
+
+# These are not secrets but are often needed by functions and are good to define clearly.
+# Ensure your Terraform configuration for the Cloud Functions (especially github-integration)
+# sources these from tfvars or directly if they are outputs from other modules (like api_gateway_url).
+# The github-integration function was configured in previous steps to get API_GATEWAY_BASE_URL from module output.
+# FRONTEND_URL might also be needed for the github-integration function's redirects.
+# If your function's env vars are already correctly populated by terraform module outputs,
+# you might not need to duplicate them here unless you want to explicitly pass them.
+# For clarity in setup, let's list them as values the user should be aware of.
+
+general_config = {
+  "FRONTEND_URL"         = "https://YOUR_FRONTEND_CLOUD_RUN_URL" # Replace YOUR_FRONTEND_CLOUD_RUN_URL
+  "API_GATEWAY_BASE_URL" = "https://YOUR_API_GATEWAY_URL" # Replace YOUR_API_GATEWAY_URL (base URL for your API Gateway)
 }
 ```
-Ensure all `${...}` placeholders are replaced with your actual configured values.
+Ensure all `${...}` placeholders are replaced with your actual configured values. The `FRONTEND_URL` and `API_GATEWAY_BASE_URL` are particularly important for the GitHub integration to correctly construct redirect and callback URLs. While `API_GATEWAY_BASE_URL` for the `github-integration` function is set by Terraform using module outputs (as `module.api_gateway.url`), you need this URL to correctly configure the GitHub OAuth App's callback URL. The `FRONTEND_URL` is used by the `github-integration` function to redirect users back to your application.
 
 This will apply the secrets on terraform apply
 

@@ -107,7 +107,8 @@ module "api" {
     "cloudfunctions.googleapis.com",
     "cloudbuild.googleapis.com",
     "iamcredentials.googleapis.com",
-    "firestore.googleapis.com"
+    "firestore.googleapis.com",
+    "cloudkms.googleapis.com"
   ]
   depends_on = [module.prioritized_api]
 }
@@ -174,6 +175,61 @@ module "service_account_gh" {
     module.api
   ]
 }
+
+module "kms_config" {
+  source = "./modules/kms"
+
+  project_id      = google_project.reomir.project_id
+  location        = local.region
+  key_ring_name   = "reomir-keyring"
+  crypto_key_name = "reomir-key"
+  sa_encrypter    = [module.service_account_gh_fn.email]
+  sa_decrypter    = [module.service_account_users_fn.email]
+
+  depends_on = [
+    module.api,
+    module.repository,
+    module.service_account_gh,
+    module.service_account_front,
+    module.wif
+  ]
+}
+
+module "service_account_gh_fn" {
+  source = "./modules/service_account"
+
+  sa_id = "github-integration-function"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/secretmanager.secretAccessor", # For GITHUB_CLIENT_ID etc.
+    "roles/datastore.user"                # For Firestore access
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# Service account for the 'users' function
+module "service_account_users_fn" {
+  source = "./modules/service_account"
+
+  sa_id = "users-function"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/datastore.user" # For Firestore access
+    # KMS decrypter will be added via kms.tf
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
 
 # Service account for API Gateway to invoke backend services.
 module "service_account_apigw" {
@@ -361,8 +417,13 @@ module "function_user" {
     LOG_EXECUTION_ID = "true" # Example environment variable
   }
 
-  function_name = "reomir-users" # Name of the Cloud Function
-  entry_point   = "handler"      # Entry point function in the code
+  function_name         = "reomir-users"                        # Name of the Cloud Function
+  entry_point           = "handler"                             # Entry point function in the code
+  service_account_email = module.service_account_users_fn.email # Assign dedicated SA
+
+  depends_on = [
+    module.service_account_users_fn # Ensure SA is created first
+  ]
 }
 
 # Deploys the Cloud Function for user management.
@@ -387,6 +448,38 @@ module "function_session_mapper" {
   entry_point   = "handler"
 }
 
+# Deploys the Cloud Function for GitHub integration.
+module "function_github_integration" {
+  source = "./modules/functions"
+
+  gcp_project = google_project.reomir.project_id
+  location    = local.region
+
+  bucket_name   = module.function_bucket.name
+  bucket_object = "reomir-github-integration.zip" # Will be created by build_and_zip.sh
+
+  environment_variables = {
+    LOG_EXECUTION_ID     = "true"
+    FRONTEND_URL         = module.cloudrun_front.url # Placeholder - to be configured as needed
+    GOOGLE_CLOUD_PROJECT = google_project.reomir.project_id
+    KMS_KEY_NAME         = module.kms_config.crypto_key_name
+    KMS_KEY_RING         = module.kms_config.key_ring_name
+    KMS_LOCATION         = local.region
+
+  }
+
+  secret_environment_variables = ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "API_GATEWAY_BASE_URL"]
+
+  function_name         = "reomir-github-integration"
+  entry_point           = "handler"
+  service_account_email = module.service_account_gh_fn.email
+
+  depends_on = [
+    module.service_account_gh_fn,
+    module.secret_manager
+  ]
+}
+
 # Deploys the API Gateway to expose backend services.
 module "api_gateway" {
   source = "./modules/api_gateway"
@@ -398,6 +491,7 @@ module "api_gateway" {
   template_vars = {
     CLOUDRUN_AGENT_URL          = module.cloudrun_agent.url
     CLOUDFUN_USER_URL           = module.function_user.url
+    CLOUDFUN_GITHUB_URL         = module.function_github_integration.url # Add new function URL
     GOOGLE_OAUTH_CLIENT_ID      = var.secrets["GOOGLE_CLIENT_ID"]
     CLOUFRUN_SESSION_MAPPER_URL = module.function_session_mapper.url
   }

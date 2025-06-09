@@ -9,7 +9,7 @@ import google.auth
 import google.auth.transport.requests
 import google.oauth2.id_token
 import requests
-from flask import Flask, make_response, request
+from flask import Flask, jsonify, make_response, request
 
 # Note: google.oauth2.id_token is NOT directly used if fetching ID token via impersonated_credentials
 
@@ -18,7 +18,7 @@ app = Flask(__name__)
 
 # --- Configuration from Environment Variables ---
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
-CLOUDRUN_AGENT_URL = os.getenv("CLOUDRUN_AGENT_URL")
+# CLOUDRUN_AGENT_URL will be fetched inside map_session
 
 # --- Header Names and Claims ---
 X_APIGATEWAY_USERINFO_HEADER = "X-Apigateway-Api-Userinfo"
@@ -71,14 +71,15 @@ def map_session():
         return _build_cors_preflight_response()
 
     # --- Essential Configuration Check ---
-    if not CLOUDRUN_AGENT_URL:
+    cloudrun_agent_url_val = os.getenv("CLOUDRUN_AGENT_URL")
+    if not cloudrun_agent_url_val:
         logging.error("CLOUDRUN_AGENT_URL environment variable is not set.")
         return {"error": "Agent URL configuration error."}, 500
 
     auth_info, error_response = _get_auth_user_info(request)
     if error_response:
-        # error_response is a tuple (data, status_code), we need to make it a Flask response
-        return make_response(json.dumps(error_response[0]), error_response[1])
+        # error_response is a tuple (data, status_code)
+        return jsonify(error_response[0]), error_response[1]
 
     user_id_from_claims = auth_info[
         USER_ID_CLAIM
@@ -92,9 +93,7 @@ def map_session():
             {"error": f"'{X_APP_HEADER}' header not found."},
             400,
         )
-    target_url_for_agent = (
-        f"{CLOUDRUN_AGENT_URL}/apps/{x_app_value}/users/{user_id_from_claims}/sessions"
-    )
+    target_url_for_agent = f"{cloudrun_agent_url_val}/apps/{x_app_value}/users/{user_id_from_claims}/sessions"
     logging.info("Attempting to POST to agent at: %s", target_url_for_agent)
 
     try:

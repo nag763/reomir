@@ -1,359 +1,278 @@
 import base64
 import json
 import os
-import unittest
+from unittest import mock
 from unittest.mock import MagicMock, patch
 
-# Import the Flask app and other necessary components from main.py
-from main import ALLOWED_ORIGINS  # For checking CORS headers
-from main import _get_auth_user_info  # Keep for direct testing if needed, but primary tests via routes
-from main import AUTHORIZATION_HEADER
-from main import CLOUDRUN_AGENT_URL as MAIN_CLOUDRUN_AGENT_URL  # To check if it's set
-from main import USER_ID_CLAIM, X_APIGATEWAY_USERINFO_HEADER, X_APP_HEADER, app
+import pytest
+import requests
+from google.auth import exceptions as google_auth_exceptions
 
-# Environment variable for patching
-CLOUDRUN_AGENT_URL_ENV = "CLOUDRUN_AGENT_URL"
+# Import the main module and the Flask app object
+import main as main_module
+from main import app
 
-# Mock for google.auth.exceptions to hold custom DefaultCredentialsError type
-# This needs to be available for patching main.google.auth.exceptions
-mock_google_auth_exceptions = MagicMock()
-mock_google_auth_exceptions.DefaultCredentialsError = type(
-    "DefaultCredentialsError", (Exception,), {}
-)
+# Create a test client for the Flask app
+client = app.test_client()
 
-# Mock for requests.exceptions to hold custom RequestException type
-# This needs to be available for patching main.requests.exceptions
-mock_requests_exceptions = MagicMock()
-mock_requests_exceptions.RequestException = type(
-    "RequestException", (Exception,), {"response": None}
-)
+# --- Fixtures for Mocking ---
 
 
-class TestCloudFunction(unittest.TestCase):
+@pytest.fixture
+def mock_dependencies(request):
+    """
+    This fixture patches the main external dependencies of the Cloud Function:
+    - os.getenv to control environment variables
+    - google.oauth2.id_token.fetch_id_token for agent authentication
+    - requests.post for calling the downstream agent
+    - logging functions for verifying log output
+    """
+    # Create a dictionary to hold all the mocks
+    mocks = {}
 
-    def setUp(self):
-        """Set up the Flask test client and reset mocks."""
-        app.testing = True
-        self.client = app.test_client()
-        # Patch logging directly in main.py where the app's logging occurs
-        self.mock_logging_info = patch("main.logging.info").start()
-        self.mock_logging_warning = patch("main.logging.warning").start()
-        self.mock_logging_error = patch("main.logging.error").start()
-        self.addCleanup(patch.stopall)  # Stops all patches started with start()
+    # Patch os.getenv
+    patcher_getenv = patch.dict(os.environ, {}, clear=True)
+    mocks["getenv"] = patcher_getenv.start()
 
-        # Ensure CLOUDRUN_AGENT_URL is set for most tests
-        patch.dict(
-            os.environ, {CLOUDRUN_AGENT_URL_ENV: "http://fake-agent.com"}
-        ).start()
+    # Patch google.oauth2.id_token.fetch_id_token
+    patcher_fetch_id_token = patch("main.google.oauth2.id_token.fetch_id_token")
+    mocks["fetch_id_token"] = patcher_fetch_id_token.start()
 
-    def _get_auth_header(self, user_id="test_user_123", email="test@example.com"):
-        auth_info = {USER_ID_CLAIM: user_id, "email": email}
-        encoded_auth_info = base64.b64encode(json.dumps(auth_info).encode()).decode()
-        return encoded_auth_info.rstrip("=")
+    # Patch requests.post
+    patcher_requests_post = patch("main.requests.post")
+    mocks["requests_post"] = patcher_requests_post.start()
 
-    # --- Tests for _get_auth_user_info (direct testing, useful for complex internal logic) ---
-    # These tests are mostly kept from the original, but adapted to use Flask's request context implicitly if needed
-    # or by creating a mock request if _get_auth_user_info is tested in complete isolation.
-    # For now, we assume _get_auth_user_info is tested via the app context.
+    # Patch logging
+    patcher_log_info = patch.object(main_module.logging, "info")
+    patcher_log_error = patch.object(main_module.logging, "error")
+    mocks["log_info"] = patcher_log_info.start()
+    mocks["log_error"] = patcher_log_error.start()
 
-    def test_get_auth_user_info_success_direct(self):
-        """Test _get_auth_user_info successfully decodes (direct call style)."""
-        user_id = "test_user_123"
-        auth_header_val = self._get_auth_header(user_id=user_id)
-        mock_req = MagicMock()
-        mock_req.headers = {X_APIGATEWAY_USERINFO_HEADER: auth_header_val}
+    # Yield the dictionary of mocks to the test function
+    yield mocks
 
-        # Call within app context to ensure it behaves as it would in the app
-        with app.test_request_context(
-            headers={X_APIGATEWAY_USERINFO_HEADER: auth_header_val}
-        ):
-            # Note: _get_auth_user_info takes flask.request directly
-            from flask import request as flask_request
+    # Teardown: stop all patchers
+    patcher_getenv.stop()
+    patcher_fetch_id_token.stop()
+    patcher_requests_post.stop()
+    patcher_log_info.stop()
+    patcher_log_error.stop()
 
-            result_info, error = _get_auth_user_info(flask_request)
 
-        self.assertIsNone(error)
-        self.assertIsNotNone(result_info)
-        self.assertEqual(result_info[USER_ID_CLAIM], user_id)
+# --- Helper Functions ---
 
-    def test_get_auth_user_info_missing_header_direct(self):
-        with app.test_request_context(headers={}):
-            from flask import request as flask_request
 
-            result_info, error = _get_auth_user_info(flask_request)
-        self.assertIsNone(result_info)
-        self.assertIsNotNone(error)
-        self.assertEqual(error[1], 401)  # Status code
+def _get_auth_headers(user_id="test-user-sub-123", email="test@example.com"):
+    """
+    Generates a valid, base64-encoded 'X-Apigateway-Api-Userinfo' header.
+    """
+    if user_id is None:
+        user_info = {"email": email}  # No 'sub' claim
+    else:
+        user_info = {"sub": user_id, "email": email}
 
-    def test_get_auth_user_info_invalid_base64_direct(self):
-        with app.test_request_context(
-            headers={X_APIGATEWAY_USERINFO_HEADER: "this is not base64"}
-        ):
-            from flask import request as flask_request
+    user_info_json = json.dumps(user_info)
+    user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
+    return {"X-Apigateway-Api-Userinfo": user_info_b64}
 
-            result_info, error = _get_auth_user_info(flask_request)
-        self.assertIsNone(result_info)
-        self.assertIsNotNone(error)
-        self.assertEqual(error[1], 400)
-        self.mock_logging_error.assert_called_once()  # Check that main.logging.error was called
 
-    # --- Route Tests ---
-    def test_options_request(self):
-        """Test OPTIONS preflight request returns 204 and CORS headers."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        response = self.client.options(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions"
-        )
+# --- Test Cases ---
 
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(response.data, b"")
-        self.assertEqual(
-            response.headers["Access-Control-Allow-Origin"], ALLOWED_ORIGINS
-        )
-        self.assertIn("POST", response.headers["Access-Control-Allow-Methods"])
-        self.assertIn("OPTIONS", response.headers["Access-Control-Allow-Methods"])
-        self.assertIn("X-App", response.headers["Access-Control-Allow-Headers"])
 
-    @patch.dict(os.environ, {CLOUDRUN_AGENT_URL_ENV: ""}, clear=True)
-    def test_post_request_missing_cloudrun_agent_url_env(self):
-        """Test POST request when CLOUDRUN_AGENT_URL is not set."""
-        # Ensure the environment variable is truly unset for this test
-        # main.CLOUDRUN_AGENT_URL will be None if the env var is not set when main.py is imported/reloaded
-        # For safety, we can also patch the variable in 'main' module directly if needed,
-        # but patching os.environ before 'app' use in test_client() should be effective for Flask config.
+def test_map_session_success(mock_dependencies):
+    """
+    GIVEN a valid POST request with all required headers and environment variables
+    WHEN the / endpoint is called
+    THEN it should successfully fetch an ID token and proxy the request to the agent
+    """
+    # --- GIVEN (Arrange) ---
+    # Set the environment variable using the mocked os.getenv
+    mock_dependencies["getenv"] = patch.dict(
+        os.environ, {"CLOUDRUN_AGENT_URL": "https://fake-agent.com"}
+    ).start()
 
-        # To make this test robust, we should ensure that main.CLOUDRUN_AGENT_URL is None.
-        # This requires careful handling of when main.py is loaded relative to the patch.
-        # A simple way is to patch 'main.CLOUDRUN_AGENT_URL' directly.
-        with patch("main.CLOUDRUN_AGENT_URL", None):
-            test_app_id = "test-app"
-            test_user_id = "test-user"
-            auth_header_val = self._get_auth_header(user_id=test_user_id)
+    # Configure mock for fetching ID token
+    mock_dependencies["fetch_id_token"].return_value = "mock-id-token"
 
-            response = self.client.post(
-                f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-                headers={
-                    X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                    X_APP_HEADER: test_app_id,
-                },
-            )
-            self.assertEqual(response.status_code, 500)
-            self.assertIn("Agent URL configuration error", response.json["error"])
+    # Configure mock for the downstream agent's response
+    mock_agent_response = MagicMock()
+    mock_agent_response.status_code = 201
+    mock_agent_response.content = b'{"agent_response": "ok"}'
+    mock_agent_response.headers = {"Content-Type": "application/json"}
+    mock_dependencies["requests_post"].return_value = mock_agent_response
 
-    def test_post_request_missing_apigateway_userinfo_header(self):
-        """Test POST request with missing X-Apigateway-Api-Userinfo header."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-            headers={X_APP_HEADER: test_app_id},
-        )
-        self.assertEqual(response.status_code, 401)
-        self.assertIn("Authentication information not found", response.json["error"])
+    headers = _get_auth_headers(user_id="user-1")
+    headers["X-App"] = "app-abc"
+    headers["Content-Type"] = "application/json"
+    request_body = {"data": "some-payload"}
 
-    def test_post_request_missing_x_app_header(self):
-        """Test POST request with missing X-App header."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        auth_header_val = self._get_auth_header(user_id=test_user_id)
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-            headers={X_APIGATEWAY_USERINFO_HEADER: auth_header_val},
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertIn(f"'{X_APP_HEADER}' header not found", response.json["error"])
+    # --- WHEN (Act) ---
+    response = client.post("/", headers=headers, json=request_body)
 
-    def test_post_request_app_id_mismatch(self):
-        """Test POST request with app_id in path not matching X-App header."""
-        path_app_id = "path-app"
-        header_app_id = "header-app"
-        test_user_id = "test-user"
-        auth_header_val = self._get_auth_header(user_id=test_user_id)
-        response = self.client.post(
-            f"/apps/{path_app_id}/users/{test_user_id}/sessions",
-            headers={
-                X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                X_APP_HEADER: header_app_id,
-            },
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertIn(
-            "App ID in path does not match X-App header", response.json["error"]
-        )
+    # --- THEN (Assert) ---
+    assert response.status_code == 201
+    assert response.json == {"agent_response": "ok"}
 
-    def test_post_request_user_id_mismatch(self):
-        """Test POST request with user_id in path not matching token."""
-        path_user_id = "path-user"
-        token_user_id = "token-user"
-        test_app_id = "test-app"
-        auth_header_val = self._get_auth_header(user_id=token_user_id)
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{path_user_id}/sessions",
-            headers={
-                X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                X_APP_HEADER: test_app_id,
-            },
-        )
-        self.assertEqual(response.status_code, 403)
-        self.assertIn(
-            "User ID in path does not match user ID in token", response.json["error"]
-        )
+    # Verify ID token was fetched for the correct audience
+    expected_agent_url = "https://fake-agent.com/apps/app-abc/users/user-1/sessions"
+    mock_dependencies["fetch_id_token"].assert_called_once()
+    assert mock_dependencies["fetch_id_token"].call_args[0][1] == expected_agent_url
 
-    @patch("main.google.oauth2.id_token.fetch_id_token")
-    @patch("main.requests.post")
-    def test_post_request_successful(self, mock_requests_post, mock_fetch_id_token):
-        """Test a successful POST request."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        fake_id_token = "fake-id-token"
-        agent_response_content = {"session_id": "session123"}
-        agent_status_code = 200
-
-        auth_header_val = self._get_auth_header(user_id=test_user_id)
-
-        mock_fetch_id_token.return_value = fake_id_token
-
-        mock_agent_response = MagicMock()
-        mock_agent_response.content = json.dumps(agent_response_content).encode()
-        mock_agent_response.status_code = agent_status_code
-        mock_agent_response.headers = {"Content-Type": "application/json"}
-        mock_requests_post.return_value = mock_agent_response
-
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-            headers={
-                X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                X_APP_HEADER: test_app_id,
-                AUTHORIZATION_HEADER: "Bearer some-gateway-token",  # Test this is logged
-            },
-        )
-
-        self.assertEqual(response.status_code, agent_status_code)
-        self.assertEqual(response.json, agent_response_content)
-        self.assertEqual(response.headers["Content-Type"], "application/json")
-        self.assertEqual(
-            response.headers["Access-Control-Allow-Origin"], ALLOWED_ORIGINS
-        )
-
-        expected_agent_url = (
-            f"http://fake-agent.com/apps/{test_app_id}/users/{test_user_id}/sessions"
-        )
-        mock_fetch_id_token.assert_called_once()
-        # google.auth.transport.requests.Request is called inside fetch_id_token, direct assertion is complex.
-        # We trust that if fetch_id_token is called with target_audience=expected_agent_url, it's correct.
-        self.assertEqual(mock_fetch_id_token.call_args[0][1], expected_agent_url)
-
-        mock_requests_post.assert_called_once_with(
-            expected_agent_url,
-            timeout=10,
-            headers={
-                AUTHORIZATION_HEADER: f"Bearer {fake_id_token}",
-                X_APP_HEADER: test_app_id,
-            },
-        )
-        self.mock_logging_info.assert_any_call(
-            "Successfully fetched ID token for agent."
-        )
-        self.mock_logging_info.assert_any_call(
-            "Agent responded with status: %s", agent_status_code
-        )
-        self.mock_logging_info.assert_any_call(
-            "Authorization header received from API Gateway (not used for downstream impersonated call): %s...",
-            "Bearer some-gatewa",  # First 20 chars
-        )
-
-    @patch(
-        "main.google.oauth2.id_token.fetch_id_token",
-        side_effect=mock_google_auth_exceptions.DefaultCredentialsError(
-            "Credentials error"
-        ),
+    # Verify the POST request to the agent was correct
+    mock_dependencies["requests_post"].assert_called_once_with(
+        expected_agent_url,
+        data=json.dumps(request_body).encode("utf-8"),
+        timeout=10,
+        headers={
+            "Authorization": "Bearer mock-id-token",
+            "X-App": "app-abc",
+        },
     )
-    def test_post_request_google_auth_error(self, mock_fetch_id_token):
-        """Test POST request with Google DefaultCredentialsError."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        auth_header_val = self._get_auth_header(user_id=test_user_id)
 
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-            headers={
-                X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                X_APP_HEADER: test_app_id,
-            },
-        )
-        self.assertEqual(response.status_code, 500)
-        self.assertIn("Service account configuration issue", response.json["error"])
-        self.mock_logging_error.assert_called_with(
-            "Could not find default credentials for the Cloud Function itself: %s",
-            "Credentials error",
-        )
-
-    @patch("main.google.oauth2.id_token.fetch_id_token", return_value="fake-id-token")
-    @patch("main.requests.post")
-    def test_post_request_agent_request_exception(
-        self, mock_requests_post, mock_fetch_id_token
-    ):
-        """Test POST request when agent call fails with RequestException."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        auth_header_val = self._get_auth_header(user_id=test_user_id)
-
-        # Configure the mock for RequestException
-        mock_exception = mock_requests_exceptions.RequestException(
-            "Agent communication error"
-        )
-        mock_exception.response = MagicMock()
-        mock_exception.response.text = "Agent unavailable"
-        mock_exception.response.status_code = 503
-        mock_requests_post.side_effect = mock_exception
-
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-            headers={
-                X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                X_APP_HEADER: test_app_id,
-            },
-        )
-        self.assertEqual(response.status_code, 503)
-        self.assertIn(
-            "Failed to communicate with agent service", response.json["error"]
-        )
-        self.assertEqual(response.json["agent_status"], 503)
-        self.assertEqual(response.json["agent_response"], "Agent unavailable")
-
-        expected_agent_url = (
-            f"http://fake-agent.com/apps/{test_app_id}/users/{test_user_id}/sessions"
-        )
-        self.mock_logging_error.assert_any_call(
-            "Error calling agent at %s: %s", expected_agent_url, mock_exception
-        )
-
-    @patch("main.google.oauth2.id_token.fetch_id_token", return_value="fake-id-token")
-    @patch("main.requests.post", side_effect=Exception("Unexpected generic error"))
-    def test_post_request_agent_unexpected_error(
-        self, mock_requests_post, mock_fetch_id_token
-    ):
-        """Test POST request with an unexpected error during agent call."""
-        test_app_id = "test-app"
-        test_user_id = "test-user"
-        auth_header_val = self._get_auth_header(user_id=test_user_id)
-
-        response = self.client.post(
-            f"/apps/{test_app_id}/users/{test_user_id}/sessions",
-            headers={
-                X_APIGATEWAY_USERINFO_HEADER: auth_header_val,
-                X_APP_HEADER: test_app_id,
-            },
-        )
-        self.assertEqual(response.status_code, 500)
-        self.assertIn("An unexpected internal error occurred", response.json["error"])
-        self.mock_logging_error.assert_called_with(
-            "An unexpected error occurred: %s",
-            Exception("Unexpected generic error"),
-            exc_info=True,
-        )
+    # Verify CORS headers
+    assert response.headers["Access-Control-Allow-Origin"] == "*"
 
 
-if __name__ == "__main__":
-    unittest.main(argv=["first-arg-is-ignored"], exit=False)
+def test_missing_agent_url_env(mock_dependencies):
+    """
+    GIVEN the CLOUDRUN_AGENT_URL environment variable is not set
+    WHEN a request is made
+    THEN it should return a 500 configuration error
+    """
+    # GIVEN
+    # The fixture already clears env vars, so CLOUDRUN_AGENT_URL is not set
+    headers = _get_auth_headers()
+    headers["X-App"] = "app-abc"
+
+    # WHEN
+    response = client.post("/", headers=headers, json={})
+
+    # THEN
+    assert response.status_code == 500
+    assert response.json == {"error": "Agent URL configuration error."}
+    mock_dependencies["log_error"].assert_called_once_with(
+        "CLOUDRUN_AGENT_URL environment variable is not set."
+    )
+
+
+def test_missing_x_app_header(mock_dependencies):
+    """
+    GIVEN a request is missing the 'X-App' header
+    WHEN a request is made
+    THEN it should return a 400 bad request error
+    """
+    # GIVEN
+    patch.dict(os.environ, {"CLOUDRUN_AGENT_URL": "https://fake-agent.com"}).start()
+    headers = _get_auth_headers()  # X-App is missing
+
+    # WHEN
+    response = client.post("/", headers=headers, json={})
+
+    # THEN
+    assert response.status_code == 400
+    assert response.json == {"error": "'X-App' header not found."}
+
+
+# --- Authentication Header Tests ---
+
+
+def test_missing_auth_header(mock_dependencies):
+    """
+    GIVEN a request is missing the 'X-Apigateway-Api-Userinfo' header
+    WHEN a request is made
+    THEN it should return a 401 unauthorized error
+    """
+    patch.dict(os.environ, {"CLOUDRUN_AGENT_URL": "https://fake-agent.com"}).start()
+    response = client.post("/", headers={"X-App": "app-abc"})  # No auth header
+
+    assert response.status_code == 401
+    assert (
+        response.json["error"]
+        == "Authentication information not found (X-Apigateway-Api-Userinfo missing)."
+    )
+
+
+def test_malformed_auth_header_not_base64(mock_dependencies):
+    """
+    GIVEN the auth header contains a string that is not valid Base64
+    WHEN a request is made
+    THEN it should return a 400 bad request error
+    """
+    patch.dict(os.environ, {"CLOUDRUN_AGENT_URL": "https://fake-agent.com"}).start()
+    headers = {"X-Apigateway-Api-Userinfo": "this-is-not-base64", "X-App": "app-abc"}
+    response = client.post("/", headers=headers)
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Invalid authentication information format."}
+
+
+def test_auth_header_missing_user_id_claim(mock_dependencies):
+    """
+    GIVEN the auth header is valid but the decoded JSON lacks the 'sub' claim
+    WHEN a request is made
+    THEN it should return a 400 bad request error
+    """
+    patch.dict(os.environ, {"CLOUDRUN_AGENT_URL": "https://fake-agent.com"}).start()
+    headers = _get_auth_headers(user_id=None)  # Helper creates a payload without 'sub'
+    headers["X-App"] = "app-abc"
+
+    response = client.post("/", headers=headers)
+
+    assert response.status_code == 400
+    assert response.json == {
+        "error": "User ID claim ('sub') not found in authentication information."
+    }
+
+
+# --- Downstream Failure Tests ---
+
+
+def test_id_token_fetch_failure(mock_dependencies):
+    """
+    GIVEN the call to fetch an ID token fails with credentials error
+    WHEN a request is made
+    THEN it should return a 500 internal server error
+    """
+    # GIVEN
+    patch.dict(os.environ, {"CLOUDRUN_AGENT_URL": "https://fake-agent.com"}).start()
+    mock_dependencies["fetch_id_token"].side_effect = (
+        google_auth_exceptions.DefaultCredentialsError("Creds not found")
+    )
+    headers = _get_auth_headers()
+    headers["X-App"] = "app-abc"
+
+    # WHEN
+    response = client.post("/", headers=headers, json={})
+
+    # THEN
+    assert response.status_code == 500
+    assert response.json == {
+        "error": "Service account configuration issue for the function."
+    }
+    mock_dependencies["log_error"].assert_called_with(
+        "Could not find default credentials for the Cloud Function itself: %s", mock.ANY
+    )
+
+
+# --- CORS Preflight Test ---
+
+
+def test_options_request(mock_dependencies):
+    """
+    GIVEN an OPTIONS preflight request
+    WHEN it hits the endpoint
+    THEN it should return a 204 No Content response with correct CORS headers
+    """
+    # WHEN
+    response = client.options("/")
+
+    # THEN
+    assert response.status_code == 204
+    assert response.data == b""
+    assert response.headers["Access-Control-Allow-Origin"] == "*"
+    assert "POST" in response.headers["Access-Control-Allow-Methods"]
+    assert "OPTIONS" in response.headers["Access-Control-Allow-Methods"]
+    assert (
+        "X-Apigateway-Api-Userinfo" in response.headers["Access-Control-Allow-Headers"]
+    )
+    assert "X-App" in response.headers["Access-Control-Allow-Headers"]

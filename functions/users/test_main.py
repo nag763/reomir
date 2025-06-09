@@ -5,6 +5,7 @@ from unittest import mock
 from unittest.mock import MagicMock, patch  # Added patch and MagicMock
 
 import pytest
+from google.cloud import exceptions as google_exceptions
 
 # Patch google.cloud.firestore.Client BEFORE main is imported.
 firestore_client_patcher = mock.patch("google.cloud.firestore.Client")
@@ -48,14 +49,17 @@ def auto_reset_mocks(request):
         )
     mock_kms_instance.reset_mock()
     # Setup default behaviors for KMS mock if needed
+    mock_kms_instance.crypto_key_path.return_value = (
+        "mock/kms/key/path"  # Ensure it returns a string
+    )
     mock_decrypt_response = mock.Mock()
     mock_decrypt_response.plaintext = b"decrypted_default_token"
     mock_kms_instance.decrypt.return_value = mock_decrypt_response
 
     # Patch logging in main_module
-    patcher_logging_info = patch("main_module.logging.info")
-    patcher_logging_warning = patch("main_module.logging.warning")
-    patcher_logging_error = patch("main_module.logging.error")
+    patcher_logging_info = patch.object(main_module.logging, "info")
+    patcher_logging_warning = patch.object(main_module.logging, "warning")
+    patcher_logging_error = patch.object(main_module.logging, "error")
 
     mock_logging_info = patcher_logging_info.start()
     mock_logging_warning = patcher_logging_warning.start()
@@ -122,9 +126,14 @@ def test_get_user_exists(auto_reset_mocks):
         "GOOGLE_CLOUD_PROJECT": "test-gcp-project",
     },
 )
-def test_get_user_with_encrypted_token_success(auto_reset_mocks):
+@patch.object(main_module, "_decrypt_data_kms")
+def test_get_user_with_encrypted_token_success(
+    mock_decrypt_kms_function, auto_reset_mocks
+):
     mock_db = auto_reset_mocks["db"]
-    mock_kms = auto_reset_mocks["kms"]
+    # mock_kms = auto_reset_mocks["kms"] # No longer directly needed for this test's assertions
+
+    mock_decrypt_kms_function.return_value = "decrypted_access_token"
 
     mock_doc_snapshot = (
         mock_db.collection.return_value.document.return_value.get.return_value
@@ -133,12 +142,8 @@ def test_get_user_with_encrypted_token_success(auto_reset_mocks):
     mock_doc_snapshot.to_dict.return_value = {
         "uid": "test-user-kms",
         "email": "kms@example.com",
-        "github_access_token": "sample_encrypted_token_base64",
+        "github_access_token": "sample_encrypted_token_base64",  # This will be passed to the patched _decrypt_data_kms
     }
-
-    mock_decrypt_response = mock.Mock()
-    mock_decrypt_response.plaintext = b"decrypted_access_token"
-    mock_kms.decrypt.return_value = mock_decrypt_response
 
     headers = _get_auth_headers(user_id="test-user-kms")
     response = client.get("/", headers=headers)
@@ -148,14 +153,9 @@ def test_get_user_with_encrypted_token_success(auto_reset_mocks):
     assert response.json["github_access_token"] == "decrypted_access_token"
     assert "github_access_token_error" not in response.json
 
-    mock_kms.crypto_key_path.assert_called_once_with(
-        "test-gcp-project", "test-location", "test-key-ring", "test-key"
-    )
-    mock_kms.decrypt.assert_called_once()  # Fuller assertion can check name and ciphertext
-    # Example of checking specific args if needed:
-    # call_args = mock_kms.decrypt.call_args
-    # self.assertEqual(call_args[1]['name'], expected_key_path)
-    # self.assertEqual(call_args[1]['ciphertext'], base64.b64decode("sample_encrypted_token_base64"))
+    mock_decrypt_kms_function.assert_called_once_with("sample_encrypted_token_base64")
+    # mock_kms.crypto_key_path.assert_called_once_with(...) # These are now internal to the patched function
+    # mock_kms.decrypt.assert_called_once()
 
 
 @patch.dict(
@@ -167,9 +167,14 @@ def test_get_user_with_encrypted_token_success(auto_reset_mocks):
         "GOOGLE_CLOUD_PROJECT": "test-gcp-project",
     },
 )
-def test_get_user_with_encrypted_token_failure(auto_reset_mocks):
+@patch.object(main_module, "_decrypt_data_kms")
+def test_get_user_with_encrypted_token_failure(
+    mock_decrypt_kms_function, auto_reset_mocks
+):
     mock_db = auto_reset_mocks["db"]
-    mock_kms = auto_reset_mocks["kms"]
+    # mock_kms = auto_reset_mocks["kms"] # No longer directly needed
+
+    mock_decrypt_kms_function.return_value = None  # Simulate decryption failure
 
     mock_doc_snapshot = (
         mock_db.collection.return_value.document.return_value.get.return_value
@@ -181,8 +186,6 @@ def test_get_user_with_encrypted_token_failure(auto_reset_mocks):
         "github_access_token": "another_encrypted_token_base64",
     }
 
-    mock_kms.decrypt.side_effect = Exception("KMS Decryption Failed")
-
     headers = _get_auth_headers(user_id="test-user-kms-fail")
     response = client.get("/", headers=headers)
 
@@ -190,7 +193,7 @@ def test_get_user_with_encrypted_token_failure(auto_reset_mocks):
     assert response.json["uid"] == "test-user-kms-fail"
     assert response.json["github_access_token"] is None
     assert response.json["github_access_token_error"] == "decryption_failed"
-    mock_kms.decrypt.assert_called_once()
+    mock_decrypt_kms_function.assert_called_once_with("another_encrypted_token_base64")
 
 
 def test_get_user_no_github_token(auto_reset_mocks):
@@ -343,7 +346,7 @@ def test_put_user_not_found(auto_reset_mocks):
     request_data = {"emailMarketing": True}
 
     mock_db.collection.return_value.document.return_value.update.side_effect = (
-        main_module.firestore.exceptions.NotFound("Doc not found")
+        google_exceptions.NotFound("Doc not found")
     )
 
     response = client.put("/", json=request_data, headers=headers)

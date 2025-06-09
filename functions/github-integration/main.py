@@ -12,10 +12,10 @@ from google.cloud import firestore, kms
 app = Flask(__name__)
 
 # Initialize Firestore client
-db = firestore.Client()
+db = None
 
 # Initialize KMS client
-KMS_CLIENT = kms.KeyManagementServiceClient()
+KMS_CLIENT = None
 KMS_KEY_NAME = os.getenv("KMS_KEY_NAME")
 KMS_KEY_RING = os.getenv("KMS_KEY_RING")
 KMS_LOCATION = os.getenv("KMS_LOCATION")
@@ -39,6 +39,17 @@ GITHUB_USER_API = "https://api.github.com/user"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
+
+
+# --- Client Initialization ---
+def _initialize_clients_if_needed():
+    global db, KMS_CLIENT
+    if db is None:
+        db = firestore.Client()
+        logging.info("Firestore client initialized.")
+    if KMS_CLIENT is None:
+        KMS_CLIENT = kms.KeyManagementServiceClient()
+        logging.info("KMS client initialized.")
 
 
 # --- Helper Functions ---
@@ -152,6 +163,7 @@ def add_cors_headers(response):
 
 @app.route("/api/v1/github/connect", methods=["GET", "OPTIONS"])
 def handle_connect_route():
+    _initialize_clients_if_needed()
     if request.method == "OPTIONS":
         return "", 204  # Preflight request handled by @after_request
 
@@ -190,6 +202,7 @@ def handle_connect_route():
 
 @app.route("/api/v1/github/callback", methods=["GET", "OPTIONS"])
 def handle_callback_route():
+    _initialize_clients_if_needed()
     if request.method == "OPTIONS":
         return "", 204
 
@@ -306,6 +319,7 @@ def handle_callback_route():
 
 @app.route("/api/v1/github/status", methods=["GET", "OPTIONS"])
 def handle_status_route():
+    _initialize_clients_if_needed()
     if request.method == "OPTIONS":
         return "", 204
 
@@ -340,8 +354,9 @@ def handle_status_route():
         return jsonify({"error": "Failed to retrieve status."}), 500
 
 
-@app.route("/api/v1/github/disconnect", methods=["DELETE", "OPTIONS"])
+@app.route("/api/v1/github/disconnect", methods=["POST", "DELETE", "OPTIONS"]) # Added POST
 def handle_disconnect_route():
+    _initialize_clients_if_needed()
     if request.method == "OPTIONS":
         return "", 204
 
@@ -386,5 +401,8 @@ def handler(req):
     Routes incoming requests to the appropriate Flask handler based on the path.
     This function is the entry point for the Google Cloud Function.
     """
+    # Ensure clients are available for the app context,
+    # though individual routes also call it for safety.
+    _initialize_clients_if_needed()
     with app.request_context(req.environ):
         return app.full_dispatch_request()

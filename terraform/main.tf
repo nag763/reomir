@@ -114,6 +114,119 @@ module "api" {
 }
 
 # ------------------------------------------------------------------------------
+# Module for managing the service account for GitHub Actions CI/CD
+# ------------------------------------------------------------------------------
+# This service account is used by GitHub Actions to deploy resources.
+module "service_account_gh" {
+  source = "./modules/service_account"
+
+  sa_id = "github-actions-deployer"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/run.admin",                # For managing Cloud Run services
+    "roles/artifactregistry.writer",  # For pushing images to Artifact Registry
+    "roles/iam.serviceAccountUser",   # For impersonating other service accounts if needed
+    "roles/cloudbuild.builds.editor", # For submitting builds
+    "roles/cloudfunctions.developer"  # For deploying Cloud Functions
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+module "service_account_gh_fn" {
+  source = "./modules/service_account"
+
+  sa_id = "github-integration-function"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/secretmanager.secretAccessor", # For GITHUB_CLIENT_ID etc.
+    "roles/datastore.user"                # For Firestore access
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# Service account for the 'users' function
+module "service_account_users_fn" {
+  source = "./modules/service_account"
+
+  sa_id = "users-function"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/datastore.user" # For Firestore access
+    # KMS decrypter will be added via kms.tf
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# Service account for API Gateway to invoke backend services.
+module "service_account_apigw" {
+  source = "./modules/service_account"
+
+  sa_id = "apigateway"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/run.invoker"
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# Service account for the 'agent_mapper' function.
+module "service_account_agent_mapper" {
+  source = "./modules/service_account"
+
+  sa_id = "agentmapper"
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/run.invoker"
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# ------------------------------------------------------------------------------
+# Module for managing the service account for the frontend Cloud Run service
+# ------------------------------------------------------------------------------
+# Grants frontend service necessary permissions (e.g., access secrets).
+module "service_account_front" {
+  source = "./modules/service_account"
+
+  sa_id = "cloudrun-front" # Service account ID for the frontend
+
+  gcp_project = google_project.reomir.project_id
+
+  roles = [
+    "roles/secretmanager.secretAccessor" # Allows access to secrets stored in Secret Manager
+  ]
+
+  depends_on = [
+    module.api
+  ]
+}
+
+# ------------------------------------------------------------------------------
 # Module for managing secrets in Google Secret Manager
 # ------------------------------------------------------------------------------
 # Stores sensitive configuration like API keys and secrets.
@@ -153,23 +266,17 @@ module "firestore" {
 }
 
 # ------------------------------------------------------------------------------
-# Module for managing the service account for GitHub Actions CI/CD
+# Module for configuring Workload Identity Federation for GitHub Actions
 # ------------------------------------------------------------------------------
-# This service account is used by GitHub Actions to deploy resources.
-module "service_account_gh" {
-  source = "./modules/service_account"
+# Allows GitHub Actions to securely authenticate with GCP using OIDC.
+module "wif" {
+  source = "./modules/wif"
 
-  sa_id = "github-actions-deployer"
+  gcp_project        = google_project.reomir.project_id
+  gcp_project_number = google_project.reomir.number
 
-  gcp_project = google_project.reomir.project_id
-
-  roles = [
-    "roles/run.admin",                # For managing Cloud Run services
-    "roles/artifactregistry.writer",  # For pushing images to Artifact Registry
-    "roles/iam.serviceAccountUser",   # For impersonating other service accounts if needed
-    "roles/cloudbuild.builds.editor", # For submitting builds
-    "roles/cloudfunctions.developer"  # For deploying Cloud Functions
-  ]
+  pool_name          = "gh-actions-pool"
+  service_account_id = module.service_account_gh.id
 
   depends_on = [
     module.api
@@ -192,115 +299,6 @@ module "kms_config" {
     module.service_account_gh,
     module.service_account_front,
     module.wif
-  ]
-}
-
-module "service_account_gh_fn" {
-  source = "./modules/service_account"
-
-  sa_id = "github-integration-function"
-
-  gcp_project = google_project.reomir.project_id
-
-  roles = [
-    "roles/secretmanager.secretAccessor", # For GITHUB_CLIENT_ID etc.
-    "roles/datastore.user"                # For Firestore access
-  ]
-
-  depends_on = [
-    module.api
-  ]
-}
-
-# Service account for the 'users' function
-module "service_account_users_fn" {
-  source = "./modules/service_account"
-
-  sa_id = "users-function"
-
-  gcp_project = google_project.reomir.project_id
-
-  roles = [
-    "roles/datastore.user" # For Firestore access
-    # KMS decrypter will be added via kms.tf
-  ]
-
-  depends_on = [
-    module.api
-  ]
-}
-
-
-# Service account for API Gateway to invoke backend services.
-module "service_account_apigw" {
-  source = "./modules/service_account"
-
-  sa_id = "apigateway"
-
-  gcp_project = google_project.reomir.project_id
-
-  roles = [
-    "roles/run.invoker"
-  ]
-
-  depends_on = [
-    module.api
-  ]
-}
-
-# Service account for API Gateway to invoke backend services.
-module "service_account_agent_mapper" {
-  source = "./modules/service_account"
-
-  sa_id = "agentmapper"
-
-  gcp_project = google_project.reomir.project_id
-
-  roles = [
-    "roles/run.invoker"
-  ]
-
-  depends_on = [
-    module.api
-  ]
-}
-
-
-# ------------------------------------------------------------------------------
-# Module for managing the service account for the frontend Cloud Run service
-# ------------------------------------------------------------------------------
-# Grants frontend service necessary permissions (e.g., access secrets).
-module "service_account_front" {
-  source = "./modules/service_account"
-
-  sa_id = "cloudrun-front" # Service account ID for the frontend
-
-  gcp_project = google_project.reomir.project_id
-
-  roles = [
-    "roles/secretmanager.secretAccessor" # Allows access to secrets stored in Secret Manager
-  ]
-
-  depends_on = [
-    module.api
-  ]
-}
-
-# ------------------------------------------------------------------------------
-# Module for configuring Workload Identity Federation for GitHub Actions
-# ------------------------------------------------------------------------------
-# Allows GitHub Actions to securely authenticate with GCP using OIDC.
-module "wif" {
-  source = "./modules/wif"
-
-  gcp_project        = google_project.reomir.project_id
-  gcp_project_number = google_project.reomir.number
-
-  pool_name          = "gh-actions-pool"
-  service_account_id = module.service_account_gh.id
-
-  depends_on = [
-    module.api
   ]
 }
 
@@ -426,7 +424,7 @@ module "function_user" {
   ]
 }
 
-# Deploys the Cloud Function for user management.
+# Deploys the Cloud Function for session mapping.
 module "function_session_mapper" {
   source = "./modules/functions"
 
@@ -505,6 +503,9 @@ module "api_gateway" {
     module.service_account_gh,
     module.service_account_front,
     module.wif
+    # Removed function_user and function_github_integration from explicit depends_on
+    # as their URLs are passed via template_vars, implying an indirect dependency
+    # that Terraform should resolve automatically.
   ]
 
 }

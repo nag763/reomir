@@ -13,6 +13,7 @@ import os
 
 import functions_framework
 from flask import Flask, jsonify, make_response, request
+from google.cloud import exceptions as google_exceptions
 from google.cloud import firestore, kms
 
 # --- Flask App Initialization ---
@@ -27,6 +28,8 @@ KMS_KEY_RING = os.getenv("KMS_KEY_RING")
 KMS_LOCATION = os.getenv("KMS_LOCATION")
 GCP_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 
+# KMS_KEY_NAME, KMS_KEY_RING, KMS_LOCATION, GCP_PROJECT will be fetched inside _decrypt_data_kms
+
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 X_APIGATEWAY_USERINFO_HEADER = "X-Apigateway-Api-Userinfo"
 USER_ID_CLAIM = "sub"  # Standard OpenID Connect claim for subject (user ID)
@@ -38,14 +41,19 @@ USER_ID_CLAIM = "sub"  # Standard OpenID Connect claim for subject (user ID)
 
 def _decrypt_data_kms(ciphertext_b64: str) -> str | None:
     """Decrypts base64 encoded ciphertext using KMS and returns plaintext string."""
-    if not all([GCP_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME]):
+    kms_key_name_val = os.getenv("KMS_KEY_NAME")
+    kms_key_ring_val = os.getenv("KMS_KEY_RING")
+    kms_location_val = os.getenv("KMS_LOCATION")
+    gcp_project_val = os.getenv("GOOGLE_CLOUD_PROJECT")
+
+    if not all([gcp_project_val, kms_location_val, kms_key_ring_val, kms_key_name_val]):
         logging.error(
-            "KMS environment variables (GCP_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME) not fully set. Cannot decrypt."
+            "KMS environment variables (GOOGLE_CLOUD_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME) not fully set. Cannot decrypt."
         )
         return None
     try:
         key_path = KMS_CLIENT.crypto_key_path(
-            GCP_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME
+            gcp_project_val, kms_location_val, kms_key_ring_val, kms_key_name_val
         )
         decoded_ciphertext = base64.b64decode(ciphertext_b64)
         logging.info(f"Decrypting data with KMS key: {key_path}")
@@ -245,7 +253,7 @@ def update_user_data_put():
             return jsonify({"error": "Failed to retrieve document after update."}), 500
         logging.info("User document for %s updated via PUT.", user_id)
         return jsonify(updated_doc.to_dict()), 200
-    except firestore.exceptions.NotFound:
+    except google_exceptions.NotFound:
         logging.warning("Firestore PUT: Document %s not found for update.", user_id)
         return jsonify({"error": f"User document {user_id} not found to update."}), 404
     except Exception as e:

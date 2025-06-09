@@ -164,7 +164,7 @@ module "service_account_users_fn" {
 
   roles = [
     "roles/datastore.user",
-    "roles/secretmanager.secretAccessor" 
+    "roles/secretmanager.secretAccessor"
   ]
 
   depends_on = [

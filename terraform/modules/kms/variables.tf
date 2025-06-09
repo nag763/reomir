@@ -20,18 +20,14 @@ variable "crypto_key_name" {
   default     = "default_cryptokey"
 }
 
-variable "github_integration_function_sa_email" {
-  description = "The service account email for the github-integration function that needs encrypter permissions."
-  type        = string
+variable "sa_encrypter" {
+  description = "A list of service account emails that need encrypter permissions."
+  type        = list(string)
+  default     = []
 }
 
-variable "users_function_sa_email" {
-  description = "The service account email for the users function that needs decrypter permissions."
-  type        = string
-}
-
-variable "prevent_destroy_crypto_key" {
-  description = "Whether to prevent the destruction of the crypto key. Recommended to be true for production."
-  type        = bool
-  default     = true
+variable "sa_decrypter" {
+  description = "A list of service account emails that need decrypter permissions."
+  type        = list(string)
+  default     = []
 }

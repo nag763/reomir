@@ -13,8 +13,7 @@ import os
 
 import functions_framework
 from flask import request
-from google.cloud import firestore
-from google.cloud import kms
+from google.cloud import firestore, kms
 
 db = firestore.Client()
 
@@ -35,7 +34,6 @@ CORS_HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "3600",
 }
-
 # --- Helper Functions (still useful to reduce repetition) ---
 
 def _decrypt_data_kms(ciphertext_b64: str) -> str | None:

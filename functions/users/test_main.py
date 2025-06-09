@@ -1,8 +1,8 @@
 import base64
 import json
-import os # Ensure os is imported for patch.dict
+import os  # Ensure os is imported for patch.dict
 from unittest import mock
-from unittest.mock import patch, MagicMock # Added patch and MagicMock
+from unittest.mock import MagicMock, patch  # Added patch and MagicMock
 
 import pytest
 

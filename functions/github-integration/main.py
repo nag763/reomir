@@ -6,8 +6,7 @@ import os
 import functions_framework
 import requests
 from flask import Flask, Response, jsonify, redirect, request
-from google.cloud import firestore
-from google.cloud import kms
+from google.cloud import firestore, kms
 
 # Initialize Flask app
 app = Flask(__name__)

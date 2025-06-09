@@ -36,6 +36,7 @@ CORS_HEADERS = {
 }
 # --- Helper Functions (still useful to reduce repetition) ---
 
+
 def _decrypt_data_kms(ciphertext_b64: str) -> str | None:
     """Decrypts base64 encoded ciphertext using KMS and returns plaintext string."""
     if not all([GCP_PROJECT, KMS_LOCATION, KMS_KEY_RING, KMS_KEY_NAME]):
@@ -56,6 +57,7 @@ def _decrypt_data_kms(ciphertext_b64: str) -> str | None:
     except Exception as e:
         logging.error(f"KMS decryption failed: {e}")
         return None
+
 
 def _get_auth_user_info(req: request):
     """Extracts, decodes, and validates user authentication info from request headers.
@@ -169,15 +171,25 @@ def handler(req: request):
                     # Check and decrypt github_access_token if present
                     encrypted_token = user_doc_data.get("github_access_token")
                     if encrypted_token and isinstance(encrypted_token, str):
-                        logging.info(f"Found github_access_token for user {user_id}, attempting decryption.")
+                        logging.info(
+                            f"Found github_access_token for user {user_id}, attempting decryption."
+                        )
                         decrypted_token = _decrypt_data_kms(encrypted_token)
                         if decrypted_token is not None:
                             user_doc_data["github_access_token"] = decrypted_token
-                            logging.info(f"Successfully decrypted github_access_token for user {user_id}.")
+                            logging.info(
+                                f"Successfully decrypted github_access_token for user {user_id}."
+                            )
                         else:
-                            logging.error(f"Failed to decrypt github_access_token for user {user_id}.")
-                            user_doc_data["github_access_token"] = None # Or consider omitting or using an empty string
-                            user_doc_data["github_access_token_error"] = "decryption_failed"
+                            logging.error(
+                                f"Failed to decrypt github_access_token for user {user_id}."
+                            )
+                            user_doc_data["github_access_token"] = (
+                                None  # Or consider omitting or using an empty string
+                            )
+                            user_doc_data["github_access_token_error"] = (
+                                "decryption_failed"
+                            )
 
                     return user_doc_data, 200, CORS_HEADERS
                 else:

@@ -95,7 +95,9 @@ def test_get_user_exists(mock_request, mock_firestore_client_instance_control):
     mock_db.collection.return_value.document.assert_called_once_with("test-user-123")
     mock_db.collection.return_value.document.return_value.get.assert_called_once()
 
+
 # --- Tests for KMS Decryption ---
+
 
 @patch.dict(
     os.environ,
@@ -111,7 +113,9 @@ def test_get_user_with_encrypted_token_success(
     mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
 ):
     mock_db = mock_firestore_client_instance_control
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
         "uid": "test-user-kms",
@@ -153,7 +157,9 @@ def test_get_user_with_encrypted_token_failure(
     mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
 ):
     mock_db = mock_firestore_client_instance_control
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
         "uid": "test-user-kms-fail",
@@ -178,7 +184,9 @@ def test_get_user_with_encrypted_token_failure(
 
     mock_decrypt_data_kms.assert_called_once_with("another_encrypted_token_base64")
     mock_db.collection.assert_called_once_with("users")
-    mock_db.collection.return_value.document.assert_called_once_with("test-user-kms-fail")
+    mock_db.collection.return_value.document.assert_called_once_with(
+        "test-user-kms-fail"
+    )
 
 
 @patch("main._decrypt_data_kms")
@@ -186,7 +194,9 @@ def test_get_user_no_github_token(
     mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
 ):
     mock_db = mock_firestore_client_instance_control
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
         "uid": "test-user-no-token",
@@ -204,7 +214,9 @@ def test_get_user_no_github_token(
 
     assert status_code == 200
     assert response["uid"] == "test-user-no-token"
-    assert "github_access_token" not in response # or assert response.get("github_access_token") is None
+    assert (
+        "github_access_token" not in response
+    )  # or assert response.get("github_access_token") is None
     assert "github_access_token_error" not in response
 
     mock_decrypt_data_kms.assert_not_called()
@@ -215,15 +227,20 @@ def test_get_user_github_token_not_string(
     mock_decrypt_data_kms, mock_request, mock_firestore_client_instance_control
 ):
     mock_db = mock_firestore_client_instance_control
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
         "uid": "test-user-invalid-token-type",
         "email": "invalidtype@example.com",
-        "github_access_token": False, # Token is not a string
+        "github_access_token": False,  # Token is not a string
     }
 
-    user_info = {"sub": "test-user-invalid-token-type", "email": "invalidtype@example.com"}
+    user_info = {
+        "sub": "test-user-invalid-token-type",
+        "email": "invalidtype@example.com",
+    }
     user_info_json = json.dumps(user_info)
     user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
     headers = {"X-Apigateway-Api-Userinfo": user_info_b64}
@@ -240,6 +257,7 @@ def test_get_user_github_token_not_string(
 
 
 # --- Original tests continue below ---
+
 
 def test_post_user_valid_data(mock_request, mock_firestore_client_instance_control):
     mock_db = mock_firestore_client_instance_control

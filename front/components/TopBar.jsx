@@ -14,22 +14,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Settings,
-  LogOut,
-  LayoutDashboard, // Icon for Dashboard
-  Newspaper, // Icon for News Feed
-  Github, // Icon for GitHub
-  Menu as MenuIcon, // Hamburger menu icon
-} from 'lucide-react';
+import { Settings, LogOut } from 'lucide-react';
 import { signOut } from 'next-auth/react';
-
-// Navigation items previously in the sidebar (excluding settings)
-const topBarNavItems = [
-  { href: '/auth/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/auth/news', icon: Newspaper, label: 'News Feed' },
-  { href: '/auth/github', icon: Github, label: 'GitHub' }, // Corrected double slash
-];
 
 const TopBar = ({}) => {
   const { session, profile } = useUserProfile();
@@ -59,36 +45,6 @@ const TopBar = ({}) => {
 
       {/* User Profile Dropdown (existing) */}
       <div className="flex space-x-4">
-        {/* Navigation Dropdown Menu */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-gray-300 hover:bg-gray-700 hover:text-white"
-            >
-              <MenuIcon className="h-5 w-5" />
-              <span className="sr-only">Open navigation menu</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            className="mt-2 ml-2 border-gray-700 bg-gray-800 font-mono text-gray-100 shadow-xl"
-            align="start"
-          >
-            <DropdownMenuLabel className="text-gray-400">
-              Navigation
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator className="bg-gray-700" />
-            {topBarNavItems.map((item) => (
-              <Link href={item.href} passHref key={item.label}>
-                <DropdownMenuItem className="cursor-pointer text-gray-100! hover:bg-gray-700 focus:bg-gray-700 focus:text-white!">
-                  <item.icon className="mr-2 h-4 w-4 text-gray-300" />
-                  <span>{item.label}</span>
-                </DropdownMenuItem>
-              </Link>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
         {user && ( // Conditionally render user menu if user object exists
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

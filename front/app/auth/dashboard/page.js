@@ -4,10 +4,9 @@
 // dashboard/page.js
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useUserProfile } from '@/components/UserProfileProvider';
-import GitHubConnectPopup from '@/components/GitHubConnectPopup';
 import ChatMessagesDisplay from '@/components/ChatMessagesDisplay';
 import ChatMessageInput from '@/components/ChatMessageInput';
 import { useChat } from '@/hooks/useChat'; // Import the custom hook
@@ -30,21 +29,9 @@ export default function Dashboard() {
   const { messages, isLoading, isBotTyping, error, handleSendMessage } =
     useChat(determinedUserId, appName);
 
-  // State for GitHub Connect Popup
-  const [showGitHubConnectPopup, setShowGitHubConnectPopup] = useState(false);
-
   useEffect(() => {
     document.title = 'Dashboard - Chat';
   }, []);
-
-  useEffect(() => {
-    if (profile && !profile.isLoadingProfile && !profile.github_connected) {
-      const dismissed = localStorage.getItem('hasDismissedGitHubPopup');
-      if (dismissed !== 'true') {
-        setShowGitHubConnectPopup(true);
-      }
-    }
-  }, [profile]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -69,25 +56,8 @@ export default function Dashboard() {
 
   const isNewConversation = messages.length === 0;
 
-  const handleConnectGitHubFromPopup = () => {
-    localStorage.setItem('hasDismissedGitHubPopup', 'true');
-    setShowGitHubConnectPopup(false);
-    // Redirect to GitHub connection initiation URL
-    window.location.href = '/api/v1/github/connect';
-  };
-
-  const handleClosePopup = () => {
-    localStorage.setItem('hasDismissedGitHubPopup', 'true');
-    setShowGitHubConnectPopup(false);
-  };
-
   return (
     <>
-      <GitHubConnectPopup
-        open={showGitHubConnectPopup}
-        onOpenChange={handleClosePopup} // Handles closing via X, overlay click, or Esc
-        onConnect={handleConnectGitHubFromPopup}
-      />
       <div className="flex min-h-0 flex-1 flex-col">
         {/* Dashboard heading if needed, or keep existing chat UI as primary */}
         {messages.length === 0 && !isLoading && (

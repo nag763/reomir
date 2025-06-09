@@ -15,20 +15,6 @@ jest.mock('@/components/UserProfileProvider', () => ({
   useUserProfile: jest.fn(),
 }));
 
-// Mock child components that are not central to this component's logic
-jest.mock('@/components/GitHubConnectPopup', () => {
-  // Give the mock component a descriptive name
-  function MockGitHubConnectPopup(props) {
-    return (
-      <div data-testid="github-popup" data-open={props.open}>
-        Mock GitHubConnectPopup
-        <button onClick={props.onConnect}>Connect</button>
-        <button onClick={props.onOpenChange}>Close</button>
-      </div>
-    );
-  }
-  return MockGitHubConnectPopup;
-});
 jest.mock('@/components/ChatMessagesDisplay', () => {
   // Name the function for better debugging
   function MockChatMessagesDisplay({ messages, isBotTyping }) {
@@ -159,72 +145,6 @@ describe('Dashboard Component', () => {
     expect(screen.getByTestId('message-input-field')).toBeDisabled();
   });
 
-  describe('GitHubConnectPopup', () => {
-    it('shows GitHubConnectPopup if profile is loaded, not connected, and not dismissed', () => {
-      mockUseUserProfileValues.profile.github_connected = false;
-      localStorage.getItem.mockReturnValueOnce('false'); // Not dismissed
-      render(<Dashboard />);
-      expect(screen.getByTestId('github-popup')).toHaveAttribute(
-        'data-open',
-        'true',
-      );
-    });
-
-    it('does not show GitHubConnectPopup if profile is connected', () => {
-      mockUseUserProfileValues.profile.github_connected = true;
-      render(<Dashboard />);
-      expect(screen.getByTestId('github-popup')).toHaveAttribute(
-        'data-open',
-        'false',
-      );
-    });
-
-    it('does not show GitHubConnectPopup if dismissed', () => {
-      mockUseUserProfileValues.profile.github_connected = false;
-      localStorage.getItem.mockReturnValueOnce('true'); // Dismissed
-      render(<Dashboard />);
-      expect(screen.getByTestId('github-popup')).toHaveAttribute(
-        'data-open',
-        'false',
-      );
-    });
-
-    it('handles connect action from popup', () => {
-      mockUseUserProfileValues.profile.github_connected = false;
-      localStorage.getItem.mockReturnValueOnce('false');
-      delete window.location;
-      window.location = { href: '' }; // Mock window.location
-
-      render(<Dashboard />);
-      fireEvent.click(screen.getByText('Connect')); // Button inside mocked popup
-
-      expect(localStorage.setItem).toHaveBeenCalledWith(
-        'hasDismissedGitHubPopup',
-        'true',
-      );
-      expect(window.location.href).toBe('/api/v1/github/connect');
-      expect(screen.getByTestId('github-popup')).toHaveAttribute(
-        'data-open',
-        'false',
-      );
-    });
-
-    it('handles close action from popup', () => {
-      mockUseUserProfileValues.profile.github_connected = false;
-      localStorage.getItem.mockReturnValueOnce('false');
-      render(<Dashboard />);
-      fireEvent.click(screen.getByText('Close')); // Button inside mocked popup
-
-      expect(localStorage.setItem).toHaveBeenCalledWith(
-        'hasDismissedGitHubPopup',
-        'true',
-      );
-      expect(screen.getByTestId('github-popup')).toHaveAttribute(
-        'data-open',
-        'false',
-      );
-    });
-  });
   it('sets document title', () => {
     render(<Dashboard />);
     expect(document.title).toBe('Dashboard - Chat');

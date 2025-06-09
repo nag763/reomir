@@ -18,7 +18,7 @@ Reomir is an AI-powered developer portal designed to streamline enterprise devel
 - **AI-Powered Assistance:** Integrates with AI to enhance developer productivity.
 - **Centralized Developer Hub:** Provides a single platform for tools, documentation, and resources.
 - **Google OAuth Integration:** Secure user authentication using Google accounts.
-- **GitHub Integration:** Connect your GitHub account to manage repositories and streamline workflows. Access and manage this in User Settings.
+- **GitHub Integration:** Connect your GitHub account to manage repositories and streamline workflows. User GitHub tokens are securely encrypted using Key Management Service (KMS) and stored in Firestore. Access and manage this feature in User Settings.
 - **Dynamic User Profile Management:** Allows users to manage their profile information.
 - **Terraform Managed Infrastructure:** Ensures reproducible and scalable deployments on Google Cloud.
 - **Automated CI/CD Pipeline:** Uses GitHub Actions for building and deploying services.
@@ -30,54 +30,67 @@ The project follows a modern web architecture:
 *   **Frontend:** A Next.js application providing the user interface. User authentication is initiated here, redirecting to Google for OAuth.
 *   **API Gateway:** Manages and secures access to backend services. It validates Google OAuth tokens to authenticate API requests.
 *   **Backend Agent:** A Python-based agent responsible for AI logic and backend operations, accessed via the API Gateway.
-*   **Cloud Functions:** Serverless functions for specific backend tasks (e.g., user profile management post-authentication), accessed via the API Gateway.
+*   **Cloud Functions:** Serverless functions for specific backend tasks (e.g., user profile management post-authentication, GitHub OAuth handling and token management), accessed via the API Gateway.
 *   **Infrastructure:** Managed by Terraform, ensuring reproducible and scalable deployments on Google Cloud.
+*   **Key Management Service (KMS):** Used to encrypt sensitive data, such as user GitHub tokens, before storage.
 
 ```mermaid
 graph TD
-    subgraph "Google Cloud Platform"
-        API_Gateway["API Gateway (Validates Google OAuth Token)"]
+    subgraph "External Services"
+        Google["Google (OAuth Provider)"]
+        GitHub["GitHub (OAuth Provider, User Data)"]
+    end
 
+    subgraph "Google Cloud Platform"
+        API_Gateway["API Gateway (Validates Token, Routes Requests)"]
         Cloud_Run_Frontend[Cloud Run: Frontend]
         Cloud_Run_Backend[Cloud Run: Backend Agent]
         Cloud_Function_UserMgmt[Cloud Function: User Management]
+        Cloud_Function_GitHub[Cloud Function: GitHub Integration]
+        Cloud_Function_SessionMapper[Cloud Function: Session Mapper]
         Firestore[Firestore Database]
         Secret_Manager[Secret Manager]
+        KMS["KMS (Token Encryption)"]
     end
 
     User[End User]
 
-    %% User Interaction Flow
-    User -- HTTPS --> Cloud_Run_Frontend
+    %% Primary Authentication Flow (Google OAuth)
+    User -- 1\. Accesses App --> Cloud_Run_Frontend
+    Cloud_Run_Frontend -- 2\. Initiates Google Sign-In --> Google
+    User -- 3\. Authenticates with Google --> Google
+    Google -- 4\. Returns Google ID Token --> Cloud_Run_Frontend
 
-    %% API Gateway Routing
-    API_Gateway -- /api/agent --> Cloud_Run_Backend
-    API_Gateway -- /api/user --> Cloud_Function_UserMgmt
+    %% Agent Interaction Flow (Requires Authentication)
+    Cloud_Run_Frontend -- 5\. API Call to Agent (with Google Token) --> API_Gateway
+    API_Gateway -- 6\. Validates Token & Calls Session Mapper --> Cloud_Function_SessionMapper
+    Cloud_Function_SessionMapper -- 7\. Creates/Updates Session --> Firestore
+    API_Gateway -- 8\. Routes to Backend Agent --> Cloud_Run_Backend
+    Cloud_Run_Backend -- 9\. Requests Session Data --> Firestore
+    Cloud_Run_Backend -- 10\. Accesses Config/Secrets --> Secret_Manager
 
-    %% Frontend Interactions
-    Cloud_Run_Frontend -- API Calls (with Google OAuth Token) --> API_Gateway
+    %% Secondary Flow: Connecting GitHub Account (User is already logged in)
+    Cloud_Run_Frontend -- 11\. User clicks 'Connect GitHub' --> API_Gateway
+    API_Gateway -- /api/v1/github/connect --> Cloud_Function_GitHub
+    Cloud_Function_GitHub -- 12\. Redirects User --> GitHub
+    User -- 13\. Authorizes App on GitHub --> GitHub
+    GitHub -- 14\. Redirects User (with auth code) --> API_Gateway
+    API_Gateway -- /api/v1/github/callback --> Cloud_Function_GitHub
+    Cloud_Function_GitHub -- 15\. Exchanges code, encrypts & stores token --> KMS & Firestore
 
-
-    %% Backend Agent Interactions
-    Cloud_Run_Backend -- Stores/Retrieves Session Data, Logs --> Firestore
-    Cloud_Run_Backend -- Accesses API Keys, Config --> Secret_Manager
-
-    %% Cloud Function Interactions
-    Cloud_Function_UserMgmt -- Stores/Retrieves User Profiles --> Firestore
-    Cloud_Function_UserMgmt -- Accesses Service Account Keys (if needed) --> Secret_Manager
-
-    %% Authentication/Authorization
-    %% Removed direct authentication line from Frontend to User Management Function
-
-
-    %% Component Styles (Optional, for better readability if rendered)
+    %% Component Styles
     style API_Gateway fill:#D6EAF8,stroke:#2E86C1,stroke-width:2px
     style Cloud_Run_Frontend fill:#D1F2EB,stroke:#1ABC9C,stroke-width:2px
     style Cloud_Run_Backend fill:#D1F2EB,stroke:#1ABC9C,stroke-width:2px
     style Cloud_Function_UserMgmt fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px
+    style Cloud_Function_GitHub fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px
+    style Cloud_Function_SessionMapper fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px
     style Firestore fill:#FADBD8,stroke:#C0392B,stroke-width:2px
     style Secret_Manager fill:#FCF3CF,stroke:#F1C40F,stroke-width:2px
+    style KMS fill:#FADBD8,stroke:#C0392B,stroke-width:2px
     style User fill:#E5E7E9,stroke:#5D6D7E,stroke-width:2px
+    style Google fill:#F4B400,stroke:#DB4437,stroke-width:2px
+    style GitHub fill:#CCCCCC,stroke:#333333,stroke-width:2px
 ```
 
 ## Getting Started
@@ -127,6 +140,7 @@ graph TD
         Cloud_Run_Frontend[Cloud Run: Frontend]
         Cloud_Run_Backend[Cloud Run: Backend Agent]
         Cloud_Function_UserMgmt[Cloud Function: User Management]
+        Cloud_Function_GitHub[Cloud Function: GitHub Integration] %% New
     end
 
     %% Flow
@@ -135,18 +149,20 @@ graph TD
 
     GitHub_Actions -- 3. Executes Workflow --> Build_Step
     Build_Step -- "Builds Docker images (Frontend, Backend)" --> GitHub_Actions
-    Build_Step -- "Packages Function code (User Mgmt)" --> GitHub_Actions
+    Build_Step -- "Packages Function code (User Mgmt, GitHub Integration)" --> GitHub_Actions %% Updated
 
     GitHub_Actions -- 4. Pushes Built Artifacts --> Artifact_Registry
 
     GitHub_Actions -- 5. Deploys Service --> Cloud_Run_Frontend
     GitHub_Actions -- 5. Deploys Service --> Cloud_Run_Backend
     GitHub_Actions -- 5. Deploys Function --> Cloud_Function_UserMgmt
+    GitHub_Actions -- 5. Deploys Function --> Cloud_Function_GitHub %% New
 
     %% Deployment Source (Implicitly from Artifact Registry via GitHub Actions)
     Cloud_Run_Frontend -.-> Artifact_Registry
     Cloud_Run_Backend -.-> Artifact_Registry
     Cloud_Function_UserMgmt -.-> Artifact_Registry
+    Cloud_Function_GitHub -.-> Artifact_Registry %% New
 
     %% Styling (Optional)
     style Developer fill:#E5E7E9,stroke:#5D6D7E,stroke-width:2px
@@ -157,6 +173,7 @@ graph TD
     style Cloud_Run_Frontend fill:#D1F2EB,stroke:#1ABC9C,stroke-width:2px
     style Cloud_Run_Backend fill:#D1F2EB,stroke:#1ABC9C,stroke-width:2px
     style Cloud_Function_UserMgmt fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px
+    style Cloud_Function_GitHub fill:#E8DAEF,stroke:#8E44AD,stroke-width:2px %% New
 ```
 
 ## General disclaimer

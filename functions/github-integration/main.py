@@ -21,7 +21,6 @@ KMS_KEY_RING = os.getenv("KMS_KEY_RING")
 KMS_LOCATION = os.getenv("KMS_LOCATION")
 GOOGLE_CLOUD_PROJECT = os.getenv("GOOGLE_CLOUD_PROJECT")
 
-
 # --- Constants ---
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
 X_APIGATEWAY_USERINFO_HEADER = "X-Apigateway-Api-Userinfo"
@@ -92,6 +91,46 @@ def _get_auth_user_info(req):
         return None
 
 
+def _create_autoclose_html_response(message: str, status: str) -> Response:
+    """
+    Creates an HTML response that displays a message and then autocloses.
+    It also attempts to send a postMessage to the parent window.
+    """
+    # Fallback to a safe default if FRONTEND_URL is not set or empty
+    frontend_origin = FRONTEND_URL.strip("/") if FRONTEND_URL else "*"
+
+    html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Authentication</title>
+    <style>
+        body {{ font-family: sans-serif; text-align: center; padding-top: 50px; background-color: #f0f2f5; }}
+        p {{ font-size: 1.1em; color: #333; }}
+    </style>
+</head>
+<body>
+    <p>{message}</p>
+    <p>This window will close in a few seconds.</p>
+    <script>
+        try {{
+            if (window.opener) {{
+                const message = {{ "source": "github-auth-popup", "status": "{status}" }};
+                const targetOrigin = "{frontend_origin}";
+                window.opener.postMessage(message, targetOrigin);
+            }}
+        }} catch (e) {{
+            console.error('Could not send message to opener window.', e);
+        }} finally {{
+            setTimeout(() => window.close(), 4000); // Close after 4 seconds
+        }}
+    </script>
+</body>
+</html>
+"""
+    return Response(html_body, mimetype="text/html")
+
+
 # --- CORS Handling ---
 @app.after_request
 def add_cors_headers(response):
@@ -159,7 +198,9 @@ def handle_callback_route():
 
     if not code or not state:
         logging.warning("Callback missing code or state.")
-        return redirect(f"{FRONTEND_URL}/auth/settings?github_error=missing_params")
+        return _create_autoclose_html_response(
+            "Authentication failed: Missing required parameters.", status="error"
+        )
 
     user_id = state
     logging.info(f"Handling GitHub callback for user_id (from state): {user_id}")
@@ -168,7 +209,9 @@ def handle_callback_route():
         logging.error(
             "GitHub OAuth app credentials or API_GATEWAY_BASE_URL not configured."
         )
-        return redirect(f"{FRONTEND_URL}/auth/settings?github_error=config_error")
+        return _create_autoclose_html_response(
+            "Authentication failed: Server configuration error.", status="error"
+        )
 
     callback_url = f"{API_GATEWAY_BASE_URL}/api/v1/github/callback"
 
@@ -191,16 +234,18 @@ def handle_callback_route():
 
         if not access_token:
             logging.error(f"Access token not in GitHub response: {token_data}")
-            return redirect(
-                f"{FRONTEND_URL}/auth/settings?github_error=token_exchange_failed"
+            return _create_autoclose_html_response(
+                "Authentication failed: Could not retrieve access token.",
+                status="error",
             )
 
         # Encrypt the access token
         encrypted_access_token = _encrypt_data_kms(access_token)
         if not encrypted_access_token:
             logging.error("Failed to encrypt GitHub access token.")
-            return redirect(
-                f"{FRONTEND_URL}/auth/settings?github_error=encryption_failed"
+            return _create_autoclose_html_response(
+                "Authentication failed: A security error occurred during processing.",
+                status="error",
             )
         logging.info("GitHub access token successfully encrypted.")
 
@@ -218,14 +263,15 @@ def handle_callback_route():
             logging.error(
                 f"GitHub username or ID not in API response: {github_user_data}"
             )
-            return redirect(
-                f"{FRONTEND_URL}/auth/settings?github_error=user_fetch_failed"
+            return _create_autoclose_html_response(
+                "Authentication failed: Could not retrieve user profile from GitHub.",
+                status="error",
             )
 
         # Store token and GitHub info in Firestore
         user_ref = db.collection("users").document(user_id)
         user_data_to_store = {
-            "github_access_token": encrypted_access_token, # Store encrypted token
+            "github_access_token": encrypted_access_token,  # Store encrypted token
             "github_login": github_login,
             "github_id": str(github_id),  # Ensure ID is stored as string
             "github_connected": True,
@@ -239,45 +285,23 @@ def handle_callback_route():
         logging.info(
             f"Successfully connected GitHub for user {user_id}, username {github_login}. Token stored with encryption."
         )
-        
-        # The origin of your frontend application for secure communication
-        frontend_origin = FRONTEND_URL.strip('/')
 
-        # This HTML is served to the popup window.
-        # It sends a message to the parent window (`window.opener`) and then closes.
-        return Response(
-            f"""
-            <html>
-                <head><title>GitHub Authentication Success</title></head>
-                <body>
-                    <p>Success! This window will now close.</p>
-                    <script>
-                        // Only proceed if running in a popup that has a parent
-                        if (window.opener) {{
-                            // Send a success message to the parent window
-                            const message = {{ "source": "github-popup", "status": "success" }};
-                            const targetOrigin = "{frontend_origin}";
-                            
-                            console.log(`Sending message to origin: ${{targetOrigin}}`);
-                            window.opener.postMessage(message, targetOrigin);
-                        }}
-                        // Close the popup window
-                        window.close();
-                    </script>
-                </body>
-            </html>
-            """,
-            mimetype="text/html",
+        return _create_autoclose_html_response(
+            "Success! You have been authenticated.", status="success"
         )
 
     except requests.exceptions.RequestException as e:
         logging.error(f"RequestException during GitHub OAuth: {e}")
         if e.response is not None:
             logging.error(f"GitHub error response: {e.response.text}")
-        return redirect(f"{FRONTEND_URL}/auth/settings?github_error=api_error")
+        return _create_autoclose_html_response(
+            "Authentication failed due to a communication error.", status="error"
+        )
     except Exception as e:
         logging.error(f"Unexpected error during GitHub callback: {e}")
-        return redirect(f"{FRONTEND_URL}/auth/settings?github_error=internal_error")
+        return _create_autoclose_html_response(
+            "Authentication failed due to an internal error.", status="error"
+        )
 
 
 @app.route("/api/v1/github/status", methods=["GET", "OPTIONS"])

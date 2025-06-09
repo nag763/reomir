@@ -14,6 +14,7 @@ import { useGitHubIntegration } from '@/hooks/useGitHubIntegration';
 
 export const GitHubIntegrationCard = ({
   profile,
+  isLoadingProfile,
   refetchProfile,
   showFeedback,
 }) => {
@@ -26,7 +27,6 @@ export const GitHubIntegrationCard = ({
   } = useGitHubIntegration(refetchProfile, showFeedback);
 
   // Ensure profile and its properties are accessed safely
-  const isLoadingProfile = profile?.isLoadingProfile ?? true; // Treat as loading if profile undefined
   const isGitHubConnected = profile?.github_connected ?? false;
   const githubLogin = profile?.github_login || 'GitHub User';
 

@@ -69,25 +69,33 @@ export const DangerZoneCard = ({ deleteProfile, showFeedback }) => {
         <div className="rounded-lg border border-red-700/50 bg-red-900/20 p-4">
           <h3 className="font-semibold text-red-400">Delete Your Account</h3>
           <p className="mt-1 text-sm text-gray-300">
-            All your data will be permanently erased. This action cannot be undone.
+            All your data will be permanently erased. This action cannot be
+            undone.
           </p>
         </div>
       </CardContent>
       <CardFooter className="flex justify-end">
         <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <AlertDialogTrigger asChild>
-            <Button variant="destructive" onClick={handleOpenDialog} disabled={isDeleting}>
+            <Button
+              variant="destructive"
+              onClick={handleOpenDialog}
+              disabled={isDeleting}
+            >
               <Trash2 className="mr-2 h-4 w-4" /> Delete My Account
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent className="border-gray-700 bg-gray-900 font-mono text-gray-100">
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center text-2xl text-red-500">
-                <AlertTriangle className="mr-3 h-6 w-6" /> Confirm Account Deletion
+                <AlertTriangle className="mr-3 h-6 w-6" /> Confirm Account
+                Deletion
               </AlertDialogTitle>
               <AlertDialogDescription className="pt-4 text-gray-400">
-                Are you absolutely sure? This action is irreversible. To confirm, type &quot;
-                <strong className="text-green-400">delete me</strong>&quot; below.
+                Are you absolutely sure? This action is irreversible. To
+                confirm, type &quot;
+                <strong className="text-green-400">delete me</strong>&quot;
+                below.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="py-4">

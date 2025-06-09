@@ -29,7 +29,7 @@ export const useFeedback = (timeoutDuration = DEFAULT_TIMEOUT_DURATION) => {
       setFeedback({ message, type });
 
       // Set new timeout to clear the feedback
-      timeoutRef.current = setTimeout(()
+      timeoutRef.current = setTimeout(() => {
         clearFeedback();
         timeoutRef.current = null; // Clear the ref after timeout executes
       }, timeoutDuration);

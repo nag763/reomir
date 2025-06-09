@@ -50,7 +50,9 @@ export const ProfileDetailsCard = ({
   const handleProfileSave = async () => {
     if (displayName.trim() === currentName || !displayName.trim()) {
       showFeedback(
-        displayName.trim() ? 'No changes made to profile name.' : 'Display name cannot be empty.',
+        displayName.trim()
+          ? 'No changes made to profile name.'
+          : 'Display name cannot be empty.',
         'info',
       );
       if (!displayName.trim()) setDisplayName(currentName); // Reset if empty
@@ -63,14 +65,11 @@ export const ProfileDetailsCard = ({
       // Assuming updateProfile from useUserProfile handles refetching internally
       // or the second argument `true` is still relevant for its implementation.
       // Based on previous context, useUserProfile's updateProfile takes (data, refetch?)
-      await updateProfile({ displayName: displayName.trim() });
+      await updateProfile({ displayName: displayName.trim() }, true);
       showFeedback('Profile updated successfully!', 'success');
       setIsEditing(false);
     } catch (error) {
-      showFeedback(
-        `Error updating profile: ${error.message}`,
-        'error',
-      );
+      showFeedback(`Error updating profile: ${error.message}`, 'error');
     } finally {
       setIsUpdating(false);
     }
@@ -107,12 +106,12 @@ export const ProfileDetailsCard = ({
               disabled={isUpdating}
             />
           ) : (
-            <p className="text-lg pt-1">{currentName || 'N/A'}</p>
+            <p className="pt-1 text-lg">{currentName || 'N/A'}</p>
           )}
         </div>
         <div>
           <Label className="text-gray-500">Email:</Label>
-          <p className="text-lg pt-1">{user?.email || 'N/A'}</p>
+          <p className="pt-1 text-lg">{user?.email || 'N/A'}</p>
         </div>
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">

@@ -31,11 +31,10 @@ describe('useChat Hook', () => {
           currentHookValues = values;
           return null; // No UI needed for these tests
         }}
-      </TestComponent>
+      </TestComponent>,
     );
     return () => currentHookValues; // Return a function that gives current values
   };
-
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -50,7 +49,8 @@ describe('useChat Hook', () => {
   });
 
   it('should have correct initial state', () => {
-    const { messages, isLoading, isBotTyping, error, chatSessionId } = getHookValues();
+    const { messages, isLoading, isBotTyping, error, chatSessionId } =
+      getHookValues();
     expect(messages).toEqual([]);
     expect(isLoading).toBe(false);
     expect(isBotTyping).toBe(false);
@@ -68,11 +68,20 @@ describe('useChat Hook', () => {
         await handleSendMessage(inputText);
       });
 
-      const { messages, isLoading, isBotTyping, error, chatSessionId } = getHookValues();
+      const { messages, isLoading, isBotTyping, error, chatSessionId } =
+        getHookValues();
 
-      expect(chatActions.acquireChatSession).toHaveBeenCalledWith(determinedUserId, appName);
+      expect(chatActions.acquireChatSession).toHaveBeenCalledWith(
+        determinedUserId,
+        appName,
+      );
       expect(chatSessionId).toBe(mockSessionId);
-      expect(chatActions.sendChatMessage).toHaveBeenCalledWith(inputText, determinedUserId, appName, mockSessionId);
+      expect(chatActions.sendChatMessage).toHaveBeenCalledWith(
+        inputText,
+        determinedUserId,
+        appName,
+        mockSessionId,
+      );
 
       expect(messages.length).toBe(2);
       expect(messages[0].role).toBe('user');
@@ -92,17 +101,19 @@ describe('useChat Hook', () => {
         // For simplicity, let's assume a first message was sent or session was pre-acquired
         // We can also "pre-load" the state for this specific test if needed,
         // but let's try by calling ensureSession via a first sendMessage.
-        await getHookValues().handleSendMessage("Initial message to get session");
+        await getHookValues().handleSendMessage(
+          'Initial message to get session',
+        );
       });
 
       // Clear mocks from the first call to isolate the second call
       jest.clearAllMocks();
-      chatActions.sendChatMessage.mockResolvedValue({ // Reset sendChatMessage mock for the second call
-         id: 'bot-msg-2',
-         role: 'model',
-         text: 'Second response',
+      chatActions.sendChatMessage.mockResolvedValue({
+        // Reset sendChatMessage mock for the second call
+        id: 'bot-msg-2',
+        role: 'model',
+        text: 'Second response',
       });
-
 
       let { handleSendMessage } = getHookValues(); // get fresh handle
       await act(async () => {
@@ -113,21 +124,32 @@ describe('useChat Hook', () => {
 
       expect(chatActions.acquireChatSession).not.toHaveBeenCalled(); // Should not be called again
       expect(currentSessionId).toBe(mockSessionId);
-      expect(chatActions.sendChatMessage).toHaveBeenCalledWith(inputText, determinedUserId, appName, mockSessionId);
-      expect(messages.find(m => m.text === 'Second response')).toBeTruthy();
+      expect(chatActions.sendChatMessage).toHaveBeenCalledWith(
+        inputText,
+        determinedUserId,
+        appName,
+        mockSessionId,
+      );
+      expect(messages.find((m) => m.text === 'Second response')).toBeTruthy();
     });
 
     it('should handle error during session acquisition', async () => {
-      chatActions.acquireChatSession.mockRejectedValueOnce(new Error('Session Failed'));
+      chatActions.acquireChatSession.mockRejectedValueOnce(
+        new Error('Session Failed'),
+      );
       let { handleSendMessage } = getHookValues();
 
       await act(async () => {
         await handleSendMessage(inputText);
       });
 
-      const { messages, isLoading, isBotTyping, error, chatSessionId } = getHookValues();
+      const { messages, isLoading, isBotTyping, error, chatSessionId } =
+        getHookValues();
 
-      expect(chatActions.acquireChatSession).toHaveBeenCalledWith(determinedUserId, appName);
+      expect(chatActions.acquireChatSession).toHaveBeenCalledWith(
+        determinedUserId,
+        appName,
+      );
       expect(chatSessionId).toBeNull();
       expect(chatActions.sendChatMessage).not.toHaveBeenCalled();
 
@@ -142,18 +164,26 @@ describe('useChat Hook', () => {
     });
 
     it('should handle error during message sending', async () => {
-      chatActions.sendChatMessage.mockRejectedValueOnce(new Error('Send Failed'));
+      chatActions.sendChatMessage.mockRejectedValueOnce(
+        new Error('Send Failed'),
+      );
       let { handleSendMessage } = getHookValues();
 
       await act(async () => {
         await handleSendMessage(inputText);
       });
 
-      const { messages, isLoading, isBotTyping, error, chatSessionId } = getHookValues();
+      const { messages, isLoading, isBotTyping, error, chatSessionId } =
+        getHookValues();
 
       expect(chatActions.acquireChatSession).toHaveBeenCalledTimes(1); // Assuming no prior session
       expect(chatSessionId).toBe(mockSessionId);
-      expect(chatActions.sendChatMessage).toHaveBeenCalledWith(inputText, determinedUserId, appName, mockSessionId);
+      expect(chatActions.sendChatMessage).toHaveBeenCalledWith(
+        inputText,
+        determinedUserId,
+        appName,
+        mockSessionId,
+      );
 
       expect(messages.length).toBe(2); // User message + system error message
       expect(messages[0].text).toBe(inputText);
@@ -170,9 +200,11 @@ describe('useChat Hook', () => {
 
       // Use a promise that doesn't resolve immediately to check intermediate states
       let resolveSendChatMessage;
-      chatActions.sendChatMessage.mockReturnValueOnce(new Promise(resolve => {
-        resolveSendChatMessage = resolve;
-      }));
+      chatActions.sendChatMessage.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveSendChatMessage = resolve;
+        }),
+      );
 
       // Initial state before send
       expect(isLoading).toBe(false);
@@ -190,7 +222,11 @@ describe('useChat Hook', () => {
 
       // Resolve the promise
       await act(async () => {
-        resolveSendChatMessage({ id: 'bot-msg-1', role: 'model', text: 'Delayed response' });
+        resolveSendChatMessage({
+          id: 'bot-msg-1',
+          role: 'model',
+          text: 'Delayed response',
+        });
         await sendPromise;
       });
 
@@ -200,7 +236,7 @@ describe('useChat Hook', () => {
       expect(isBotTyping).toBe(false);
     });
 
-     it('should not send message if inputText is empty or whitespace', async () => {
+    it('should not send message if inputText is empty or whitespace', async () => {
       let { handleSendMessage } = getHookValues();
       await act(async () => {
         await handleSendMessage('   ');

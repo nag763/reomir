@@ -15,7 +15,6 @@ export const useChat = (determinedUserId, appName) => {
     // Prevent multiple simultaneous attempts if already loading session
     if (isLoading && !chatSessionId) return null;
 
-
     setIsLoading(true);
     setError(null);
     try {
@@ -40,79 +39,84 @@ export const useChat = (determinedUserId, appName) => {
     } finally {
       // Only set isLoading to false if it wasn't a bot typing operation
       if (!isBotTyping) {
-         setIsLoading(false);
+        setIsLoading(false);
       }
     }
   }, [determinedUserId, appName, chatSessionId, isLoading, isBotTyping]); // Added isLoading and isBotTyping to dependencies
 
-  const handleSendMessage = useCallback(async (inputText) => {
-    if (!inputText.trim()) return;
+  const handleSendMessage = useCallback(
+    async (inputText) => {
+      if (!inputText.trim()) return;
 
-    if (!determinedUserId) {
-      const errMsg = 'User ID is not available. Cannot send message.';
-      setError(errMsg);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `syserr-${Date.now()}`,
-          role: 'system',
-          text: `Error: ${errMsg}`,
-        },
-      ]);
-      return;
-    }
-
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      text: inputText,
-    };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setIsLoading(true); // Disable input, show general loading
-    setIsBotTyping(true); // Show typing indicator
-    setError(null);
-
-    try {
-      let currentSessionId = chatSessionId;
-      if (!currentSessionId) {
-        console.log('useChat: No session ID, calling ensureSession from handleSendMessage');
-        currentSessionId = await ensureSession();
-      }
-
-      if (!currentSessionId) {
-        // Error is handled and displayed by ensureSession
-        // Set loading states correctly if session acquisition failed
-        setIsLoading(false);
-        setIsBotTyping(false);
+      if (!determinedUserId) {
+        const errMsg = 'User ID is not available. Cannot send message.';
+        setError(errMsg);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `syserr-${Date.now()}`,
+            role: 'system',
+            text: `Error: ${errMsg}`,
+          },
+        ]);
         return;
       }
-      console.log('useChat: Sending message with session', currentSessionId);
-      const botMessage = await sendChatMessage(
-        inputText,
-        determinedUserId,
-        appName,
-        currentSessionId,
-      );
-      setMessages((prevMessages) => [...prevMessages, botMessage]);
-    } catch (err) {
-      console.error('useChat: Error sending message:', err);
-      const errorMessage =
-        err.message || 'Failed to get a response from the bot.';
-      setError(errorMessage);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          id: `syserr-${Date.now()}`,
-          role: 'system',
-          text: `Error: ${errorMessage}`,
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-      setIsBotTyping(false);
-      // commandInputRef.current?.focus(); // This needs to be handled in the component
-    }
-  }, [determinedUserId, appName, chatSessionId, ensureSession]); // Removed internal state dependencies that are now part of the hook
+
+      const userMessage = {
+        id: `user-${Date.now()}`,
+        role: 'user',
+        text: inputText,
+      };
+      setMessages((prevMessages) => [...prevMessages, userMessage]);
+      setIsLoading(true); // Disable input, show general loading
+      setIsBotTyping(true); // Show typing indicator
+      setError(null);
+
+      try {
+        let currentSessionId = chatSessionId;
+        if (!currentSessionId) {
+          console.log(
+            'useChat: No session ID, calling ensureSession from handleSendMessage',
+          );
+          currentSessionId = await ensureSession();
+        }
+
+        if (!currentSessionId) {
+          // Error is handled and displayed by ensureSession
+          // Set loading states correctly if session acquisition failed
+          setIsLoading(false);
+          setIsBotTyping(false);
+          return;
+        }
+        console.log('useChat: Sending message with session', currentSessionId);
+        const botMessage = await sendChatMessage(
+          inputText,
+          determinedUserId,
+          appName,
+          currentSessionId,
+        );
+        setMessages((prevMessages) => [...prevMessages, botMessage]);
+      } catch (err) {
+        console.error('useChat: Error sending message:', err);
+        const errorMessage =
+          err.message || 'Failed to get a response from the bot.';
+        setError(errorMessage);
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            id: `syserr-${Date.now()}`,
+            role: 'system',
+            text: `Error: ${errorMessage}`,
+          },
+        ]);
+      } finally {
+        setIsLoading(false);
+        setIsBotTyping(false);
+        // commandInputRef.current?.focus(); // This needs to be handled in the component
+      }
+    },
+    [determinedUserId, appName, chatSessionId, ensureSession],
+  ); // Removed internal state dependencies that are now part of the hook
 
   // Optional: Effect to pre-load session when component mounts and user/app info is available
   // This can be enabled if desired, but for now, session is acquired on first message.

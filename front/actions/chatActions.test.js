@@ -11,7 +11,7 @@ jest.mock('@/lib/apiClient', () => ({
 jest.mock('marked', () => ({
   marked: {
     parse: jest.fn((text) => Promise.resolve(`parsed_${text}`)),
-  }
+  },
 }));
 
 describe('chatActions', () => {
@@ -39,15 +39,21 @@ describe('chatActions', () => {
     it('should throw an error if API call fails', async () => {
       callAuthenticatedApi.mockRejectedValueOnce(new Error('API Error'));
 
-      await expect(acquireChatSession(determinedUserId, appName)).rejects.toThrow('API Error');
+      await expect(
+        acquireChatSession(determinedUserId, appName),
+      ).rejects.toThrow('API Error');
     });
 
     it('should throw an error if response is invalid or session ID is missing', async () => {
       callAuthenticatedApi.mockResolvedValueOnce({}); // Missing id
-      await expect(acquireChatSession(determinedUserId, appName)).rejects.toThrow('Failed to acquire session or session ID missing.');
+      await expect(
+        acquireChatSession(determinedUserId, appName),
+      ).rejects.toThrow('Failed to acquire session or session ID missing.');
 
       callAuthenticatedApi.mockResolvedValueOnce(null); // Null response
-      await expect(acquireChatSession(determinedUserId, appName)).rejects.toThrow('Failed to acquire session or session ID missing.');
+      await expect(
+        acquireChatSession(determinedUserId, appName),
+      ).rejects.toThrow('Failed to acquire session or session ID missing.');
     });
   });
 
@@ -59,13 +65,22 @@ describe('chatActions', () => {
 
     const mockApiResponse = [
       { id: 'msg1', role: 'user', content: { parts: [{ text: 'Hello bot' }] } },
-      { id: 'msg2', role: 'model', content: { parts: [{ text: 'Hello user' }] } },
+      {
+        id: 'msg2',
+        role: 'model',
+        content: { parts: [{ text: 'Hello user' }] },
+      },
     ];
 
     it('should send a message and process the response successfully', async () => {
       callAuthenticatedApi.mockResolvedValueOnce(mockApiResponse);
 
-      const botMessage = await sendChatMessage(inputText, determinedUserId, appName, sessionId);
+      const botMessage = await sendChatMessage(
+        inputText,
+        determinedUserId,
+        appName,
+        sessionId,
+      );
 
       expect(callAuthenticatedApi).toHaveBeenCalledWith('agent/run', {
         method: 'POST',
@@ -91,13 +106,22 @@ describe('chatActions', () => {
 
     it('should use a generated ID if response ID is missing for bot message', async () => {
       const apiResponseNoId = [
-        { id: 'msg1', role: 'user', content: { parts: [{ text: 'Hello bot' }] } },
+        {
+          id: 'msg1',
+          role: 'user',
+          content: { parts: [{ text: 'Hello bot' }] },
+        },
         { role: 'model', content: { parts: [{ text: 'Hello again' }] } }, // No id for bot message
       ];
       callAuthenticatedApi.mockResolvedValueOnce(apiResponseNoId);
       jest.spyOn(Date, 'now').mockReturnValue(1234567890); // Mock Date.now() for predictable ID
 
-      const botMessage = await sendChatMessage(inputText, determinedUserId, appName, sessionId);
+      const botMessage = await sendChatMessage(
+        inputText,
+        determinedUserId,
+        appName,
+        sessionId,
+      );
       expect(botMessage.id).toBe('bot-1234567890');
       expect(botMessage.text).toBe('parsed_Hello again');
 
@@ -107,21 +131,39 @@ describe('chatActions', () => {
     it('should throw an error if API call fails', async () => {
       callAuthenticatedApi.mockRejectedValueOnce(new Error('API Send Error'));
 
-      await expect(sendChatMessage(inputText, determinedUserId, appName, sessionId)).rejects.toThrow('API Send Error');
+      await expect(
+        sendChatMessage(inputText, determinedUserId, appName, sessionId),
+      ).rejects.toThrow('API Send Error');
     });
 
     it('should throw an error for invalid API response structure', async () => {
       callAuthenticatedApi.mockResolvedValueOnce(null); // Null response
-      await expect(sendChatMessage(inputText, determinedUserId, appName, sessionId)).rejects.toThrow('Invalid response structure from the bot (empty or null).');
+      await expect(
+        sendChatMessage(inputText, determinedUserId, appName, sessionId),
+      ).rejects.toThrow(
+        'Invalid response structure from the bot (empty or null).',
+      );
 
       callAuthenticatedApi.mockResolvedValueOnce([]); // Empty array
-      await expect(sendChatMessage(inputText, determinedUserId, appName, sessionId)).rejects.toThrow('Invalid response structure from the bot (empty or null).');
+      await expect(
+        sendChatMessage(inputText, determinedUserId, appName, sessionId),
+      ).rejects.toThrow(
+        'Invalid response structure from the bot (empty or null).',
+      );
 
       callAuthenticatedApi.mockResolvedValueOnce([{ content: null }]); // Missing parts
-      await expect(sendChatMessage(inputText, determinedUserId, appName, sessionId)).rejects.toThrow('Response does not contain expected content structure.');
+      await expect(
+        sendChatMessage(inputText, determinedUserId, appName, sessionId),
+      ).rejects.toThrow(
+        'Response does not contain expected content structure.',
+      );
 
       callAuthenticatedApi.mockResolvedValueOnce([{ content: { parts: [] } }]); // Empty parts
-      await expect(sendChatMessage(inputText, determinedUserId, appName, sessionId)).rejects.toThrow('Response does not contain expected content structure.');
+      await expect(
+        sendChatMessage(inputText, determinedUserId, appName, sessionId),
+      ).rejects.toThrow(
+        'Response does not contain expected content structure.',
+      );
     });
   });
 });

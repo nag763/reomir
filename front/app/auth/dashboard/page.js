@@ -27,13 +27,8 @@ export default function Dashboard() {
   const appName = 'coordinator';
 
   // Use the custom hook for chat state and logic
-  const {
-    messages,
-    isLoading,
-    isBotTyping,
-    error,
-    handleSendMessage,
-  } = useChat(determinedUserId, appName);
+  const { messages, isLoading, isBotTyping, error, handleSendMessage } =
+    useChat(determinedUserId, appName);
 
   // State for GitHub Connect Popup
   const [showGitHubConnectPopup, setShowGitHubConnectPopup] = useState(false);

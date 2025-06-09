@@ -16,28 +16,64 @@ jest.mock('@/components/UserProfileProvider', () => ({
 }));
 
 // Mock child components that are not central to this component's logic
-jest.mock('@/components/GitHubConnectPopup', () => (props) => (
-  <div data-testid="github-popup" data-open={props.open}>
-    Mock GitHubConnectPopup
-    <button onClick={props.onConnect}>Connect</button>
-    <button onClick={props.onOpenChange}>Close</button>
-  </div>
-));
-jest.mock('@/components/ChatMessagesDisplay', () => ({ messages, isBotTyping }) => (
-  <div data-testid="chat-messages">
-    {messages.map((msg) => (
-      <div key={msg.id} data-testid={`message-${msg.id}`}>{msg.text}</div>
-    ))}
-    {isBotTyping && <div data-testid="typing-indicator">Bot is typing...</div>}
-  </div>
-));
-jest.mock('@/components/ChatMessageInput', () => React.forwardRef(({ onSendMessage, isLoading }, ref) => (
-  <div data-testid="chat-input">
-    <input type="text" data-testid="message-input-field" disabled={isLoading} ref={ref} />
-    <button onClick={() => onSendMessage('Test message from input')} data-testid="send-button">Send</button>
-  </div>
-)));
+jest.mock('@/components/GitHubConnectPopup', () => {
+  // Give the mock component a descriptive name
+  function MockGitHubConnectPopup(props) {
+    return (
+      <div data-testid="github-popup" data-open={props.open}>
+        Mock GitHubConnectPopup
+        <button onClick={props.onConnect}>Connect</button>
+        <button onClick={props.onOpenChange}>Close</button>
+      </div>
+    );
+  }
+  return MockGitHubConnectPopup;
+});
+jest.mock('@/components/ChatMessagesDisplay', () => {
+  // Name the function for better debugging
+  function MockChatMessagesDisplay({ messages, isBotTyping }) {
+    return (
+      <div data-testid="chat-messages">
+        {messages.map((msg) => (
+          <div key={msg.id} data-testid={`message-${msg.id}`}>
+            {msg.text}
+          </div>
+        ))}
+        {isBotTyping && (
+          <div data-testid="typing-indicator">Bot is typing...</div>
+        )}
+      </div>
+    );
+  }
+  return MockChatMessagesDisplay;
+});
 
+jest.mock('@/components/ChatMessageInput', () => {
+  // Define the component using React.forwardRef
+  const MockChatMessageInput = React.forwardRef(
+    ({ onSendMessage, isLoading }, ref) => (
+      <div data-testid="chat-input">
+        <input
+          type="text"
+          data-testid="message-input-field"
+          disabled={isLoading}
+          ref={ref}
+        />
+        <button
+          onClick={() => onSendMessage('Test message from input')}
+          data-testid="send-button"
+        >
+          Send
+        </button>
+      </div>
+    ),
+  );
+
+  // Assign the displayName for debugging React DevTools
+  MockChatMessageInput.displayName = 'MockChatMessageInput';
+
+  return MockChatMessageInput;
+});
 
 describe('Dashboard Component', () => {
   let mockUseChatValues;
@@ -55,11 +91,19 @@ describe('Dashboard Component', () => {
     };
     require('@/hooks/useChat').useChat.mockReturnValue(mockUseChatValues);
 
-    mockUseSessionValues = { data: { user: { id: 'testSessionUser' } }, status: 'authenticated' };
+    mockUseSessionValues = {
+      data: { user: { id: 'testSessionUser' } },
+      status: 'authenticated',
+    };
     require('next-auth/react').useSession.mockReturnValue(mockUseSessionValues);
 
-    mockUseUserProfileValues = { profile: { uid: 'testProfileUser', github_connected: true }, isLoadingProfile: false };
-    require('@/components/UserProfileProvider').useUserProfile.mockReturnValue(mockUseUserProfileValues);
+    mockUseUserProfileValues = {
+      profile: { uid: 'testProfileUser', github_connected: true },
+      isLoadingProfile: false,
+    };
+    require('@/components/UserProfileProvider').useUserProfile.mockReturnValue(
+      mockUseUserProfileValues,
+    );
 
     // Mock localStorage for GitHub popup dismissal
     Storage.prototype.getItem = jest.fn();
@@ -104,7 +148,9 @@ describe('Dashboard Component', () => {
     const inputField = screen.getByTestId('message-input-field');
     fireEvent.change(inputField, { target: { value: 'Test message' } }); // Not strictly necessary due to mock
     fireEvent.click(screen.getByTestId('send-button'));
-    expect(mockUseChatValues.handleSendMessage).toHaveBeenCalledWith('Test message from input');
+    expect(mockUseChatValues.handleSendMessage).toHaveBeenCalledWith(
+      'Test message from input',
+    );
   });
 
   it('disables input when isLoading is true', () => {
@@ -118,20 +164,29 @@ describe('Dashboard Component', () => {
       mockUseUserProfileValues.profile.github_connected = false;
       localStorage.getItem.mockReturnValueOnce('false'); // Not dismissed
       render(<Dashboard />);
-      expect(screen.getByTestId('github-popup')).toHaveAttribute('data-open', 'true');
+      expect(screen.getByTestId('github-popup')).toHaveAttribute(
+        'data-open',
+        'true',
+      );
     });
 
     it('does not show GitHubConnectPopup if profile is connected', () => {
       mockUseUserProfileValues.profile.github_connected = true;
       render(<Dashboard />);
-      expect(screen.getByTestId('github-popup')).toHaveAttribute('data-open', 'false');
+      expect(screen.getByTestId('github-popup')).toHaveAttribute(
+        'data-open',
+        'false',
+      );
     });
 
     it('does not show GitHubConnectPopup if dismissed', () => {
       mockUseUserProfileValues.profile.github_connected = false;
       localStorage.getItem.mockReturnValueOnce('true'); // Dismissed
       render(<Dashboard />);
-      expect(screen.getByTestId('github-popup')).toHaveAttribute('data-open', 'false');
+      expect(screen.getByTestId('github-popup')).toHaveAttribute(
+        'data-open',
+        'false',
+      );
     });
 
     it('handles connect action from popup', () => {
@@ -143,9 +198,15 @@ describe('Dashboard Component', () => {
       render(<Dashboard />);
       fireEvent.click(screen.getByText('Connect')); // Button inside mocked popup
 
-      expect(localStorage.setItem).toHaveBeenCalledWith('hasDismissedGitHubPopup', 'true');
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'hasDismissedGitHubPopup',
+        'true',
+      );
       expect(window.location.href).toBe('/api/v1/github/connect');
-      expect(screen.getByTestId('github-popup')).toHaveAttribute('data-open', 'false');
+      expect(screen.getByTestId('github-popup')).toHaveAttribute(
+        'data-open',
+        'false',
+      );
     });
 
     it('handles close action from popup', () => {
@@ -154,11 +215,17 @@ describe('Dashboard Component', () => {
       render(<Dashboard />);
       fireEvent.click(screen.getByText('Close')); // Button inside mocked popup
 
-      expect(localStorage.setItem).toHaveBeenCalledWith('hasDismissedGitHubPopup', 'true');
-      expect(screen.getByTestId('github-popup')).toHaveAttribute('data-open', 'false');
+      expect(localStorage.setItem).toHaveBeenCalledWith(
+        'hasDismissedGitHubPopup',
+        'true',
+      );
+      expect(screen.getByTestId('github-popup')).toHaveAttribute(
+        'data-open',
+        'false',
+      );
     });
   });
-   it('sets document title', () => {
+  it('sets document title', () => {
     render(<Dashboard />);
     expect(document.title).toBe('Dashboard - Chat');
   });

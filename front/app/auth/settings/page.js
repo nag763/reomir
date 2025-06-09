@@ -16,8 +16,13 @@ import { DangerZoneCard } from '@/components/settings/DangerZoneCard';
 
 export default function SettingsPage() {
   const { data: session } = useSession();
-  const { profile, updateProfile, deleteProfile, refetchProfile } =
-    useUserProfile();
+  const {
+    profile,
+    isLoadingProfile,
+    updateProfile,
+    deleteProfile,
+    refetchProfile,
+  } = useUserProfile();
   const { feedback, showFeedback } = useFeedback(); // Default timeout is 3000ms
 
   // const inputRef = useRef(null); // Moved to ProfileDetailsCard
@@ -55,6 +60,7 @@ export default function SettingsPage() {
 
       <GitHubIntegrationCard
         profile={profile}
+        isLoadingProfile={isLoadingProfile}
         refetchProfile={refetchProfile}
         showFeedback={showFeedback}
       />

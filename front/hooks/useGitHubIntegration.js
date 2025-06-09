@@ -1,9 +1,6 @@
 // front/hooks/useGitHubIntegration.js
 import { useState, useEffect, useCallback } from 'react';
-import {
-  connectGitHub,
-  disconnectGitHub,
-} from '@/actions/settingsActions';
+import { connectGitHub, disconnectGitHub } from '@/actions/settingsActions';
 
 export const useGitHubIntegration = (refetchProfile, showFeedback) => {
   const [isConnecting, setIsConnecting] = useState(false);
@@ -29,13 +26,16 @@ export const useGitHubIntegration = (refetchProfile, showFeedback) => {
           errorMessage = 'GitHub connection failed: Missing parameters.';
           break;
         case 'config_error':
-          errorMessage = 'GitHub connection failed: Server configuration error.';
+          errorMessage =
+            'GitHub connection failed: Server configuration error.';
           break;
         case 'token_exchange_failed':
-          errorMessage = 'GitHub connection failed: Could not get access token.';
+          errorMessage =
+            'GitHub connection failed: Could not get access token.';
           break;
         case 'user_fetch_failed':
-          errorMessage = 'GitHub connection failed: Could not fetch user details.';
+          errorMessage =
+            'GitHub connection failed: Could not fetch user details.';
           break;
         case 'api_error':
           errorMessage = 'GitHub connection failed: API communication error.';
@@ -101,11 +101,15 @@ export const useGitHubIntegration = (refetchProfile, showFeedback) => {
             // The URL param handler or next profile state will confirm.
             clearInterval(popupPoller);
             window.removeEventListener('message', handleMessage);
-          } else if (!popup) { // If popup failed to open
+          } else if (!popup) {
+            // If popup failed to open
             clearInterval(popupPoller);
             window.removeEventListener('message', handleMessage);
             setError('Popup window was blocked or failed to open.');
-            showFeedback('Popup window was blocked or failed to open. Please disable your popup blocker for this site and try again.', 'error');
+            showFeedback(
+              'Popup window was blocked or failed to open. Please disable your popup blocker for this site and try again.',
+              'error',
+            );
             setIsConnecting(false);
           }
         }, 500);

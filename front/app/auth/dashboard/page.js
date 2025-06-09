@@ -1,13 +1,16 @@
 // dashboard/page.js
 'use client';
 
+// dashboard/page.js
+'use client';
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useUserProfile } from '@/components/UserProfileProvider';
-import GitHubConnectPopup from '@/components/GitHubConnectPopup'; // Added
+import GitHubConnectPopup from '@/components/GitHubConnectPopup';
 import ChatMessagesDisplay from '@/components/ChatMessagesDisplay';
 import ChatMessageInput from '@/components/ChatMessageInput';
-import { acquireChatSession, sendChatMessage } from '@/lib/chatApiService';
+import { useChat } from '@/hooks/useChat'; // Import the custom hook
 
 const predefinedSuggestions = [
   'What are the latest updates from the major cloud providers over the past 24 hours ?',
@@ -23,11 +26,14 @@ export default function Dashboard() {
     profile?.uid || authSession?.user?.id || 'anonymous_user';
   const appName = 'coordinator';
 
-  const [chatSessionId, setChatSessionId] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [isLoading, setIsLoading] = useState(false); // For general loading, like input disabling
-  const [isBotTyping, setIsBotTyping] = useState(false); // For typing indicator
-  const [error, setError] = useState(null);
+  // Use the custom hook for chat state and logic
+  const {
+    messages,
+    isLoading,
+    isBotTyping,
+    error,
+    handleSendMessage,
+  } = useChat(determinedUserId, appName);
 
   // State for GitHub Connect Popup
   const [showGitHubConnectPopup, setShowGitHubConnectPopup] = useState(false);
@@ -59,103 +65,12 @@ export default function Dashboard() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const ensureSession = async () => {
-    if (chatSessionId) return chatSessionId;
-
-    setIsLoading(true); // General loading for session acquisition
-    setError(null);
-    try {
-      const newSessionId = await acquireChatSession(determinedUserId, appName);
-      setChatSessionId(newSessionId);
-      return newSessionId;
-    } catch (err) {
-      console.error('Dashboard: Error acquiring session:', err);
-      const errorMessage = err.message || 'Could not start a chat session.';
-      setError(errorMessage);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `syserr-${Date.now()}`,
-          role: 'system',
-          text: `Error: ${errorMessage}`,
-        },
-      ]);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendMessage = async (inputText) => {
-    if (!inputText.trim()) return;
-
-    if (!determinedUserId) {
-      const errMsg = 'User ID is not available. Cannot send message.';
-      setError(errMsg);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: `syserr-${Date.now()}`,
-          role: 'system',
-          text: `Error: ${errMsg}`,
-        },
-      ]);
-      return;
-    }
-
-    const userMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      text: inputText,
-    };
-    setMessages((prevMessages) => [...prevMessages, userMessage]);
-    setIsLoading(true); // Disable input, show general loading if any
-    setIsBotTyping(true); // Show typing indicator
-    setError(null);
-
-    try {
-      let currentSessionId = chatSessionId;
-      if (!currentSessionId) {
-        currentSessionId = await ensureSession();
-      }
-
-      if (!currentSessionId) {
-        // Error is handled and displayed by ensureSession
-        return;
-      }
-
-      const botMessage = await sendChatMessage(
-        inputText,
-        determinedUserId,
-        appName,
-        currentSessionId,
-      );
-      setMessages((prevMessages) => [...prevMessages, botMessage]);
-    } catch (err) {
-      console.error('Dashboard: Error sending message:', err);
-      const errorMessage =
-        err.message || 'Failed to get a response from the bot.';
-      setError(errorMessage);
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        {
-          id: `syserr-${Date.now()}`,
-          role: 'system',
-          text: `Error: ${errorMessage}`,
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-      setIsBotTyping(false); // Hide typing indicator
+  // Effect to focus input after bot stops typing if no general loading is active
+  useEffect(() => {
+    if (!isBotTyping && !isLoading) {
       commandInputRef.current?.focus();
     }
-  };
-
-  useEffect(() => {
-    if (determinedUserId && !chatSessionId) {
-      // ensureSession(); // Optional: Call if you want a session ready on load.
-    }
-  }, [determinedUserId, chatSessionId]);
+  }, [isBotTyping, isLoading]);
 
   const isNewConversation = messages.length === 0;
 
@@ -201,8 +116,8 @@ export default function Dashboard() {
           ref={commandInputRef}
           suggestions={predefinedSuggestions}
           showSuggestionsCondition={isNewConversation}
-          onSendMessage={handleSendMessage}
-          isLoading={isLoading} // This prop disables the input during any loading
+          onSendMessage={handleSendMessage} // Use handleSendMessage from the hook
+          isLoading={isLoading} // isLoading from the hook now controls this
         />
       </div>
     </>

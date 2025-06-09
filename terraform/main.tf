@@ -163,8 +163,8 @@ module "service_account_users_fn" {
   gcp_project = google_project.reomir.project_id
 
   roles = [
-    "roles/datastore.user" # For Firestore access
-    # KMS decrypter will be added via kms.tf
+    "roles/datastore.user",
+    "roles/secretmanager.secretAccessor" 
   ]
 
   depends_on = [
@@ -412,8 +412,14 @@ module "function_user" {
   bucket_object = "reomir-users.zip"          # Zipped source code in the bucket
 
   environment_variables = {
-    LOG_EXECUTION_ID = "true" # Example environment variable
+    LOG_EXECUTION_ID     = "true" # Example environment variable
+    GOOGLE_CLOUD_PROJECT = google_project.reomir.project_id
+    KMS_KEY_NAME         = module.kms_config.crypto_key_name
+    KMS_KEY_RING         = module.kms_config.key_ring_name
+    KMS_LOCATION         = local.region
   }
+
+  secret_environment_variables = ["GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET", "API_GATEWAY_BASE_URL"]
 
   function_name         = "reomir-users"                        # Name of the Cloud Function
   entry_point           = "handler"                             # Entry point function in the code

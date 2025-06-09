@@ -2,3 +2,7 @@ Flask
 google-cloud-firestore
 requests
 google-cloud-kms
+pytest
+pytest-cov
+requests-mock
+functions-framework

@@ -12,7 +12,7 @@ import logging
 import os
 
 import functions_framework
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, jsonify, make_response, request
 from google.cloud import firestore, kms
 
 # --- Flask App Initialization ---
@@ -34,6 +34,7 @@ USER_ID_CLAIM = "sub"  # Standard OpenID Connect claim for subject (user ID)
 # CORS_HEADERS dictionary removed
 
 # --- Helper Functions ---
+
 
 def _decrypt_data_kms(ciphertext_b64: str) -> str | None:
     """Decrypts base64 encoded ciphertext using KMS and returns plaintext string."""
@@ -98,11 +99,15 @@ def _get_request_data(req: request):
     try:
         request_data = req.get_json(silent=False)
         if request_data is None:
-            return None, ({"error": "No JSON payload provided or payload is null."}, 400)
+            return None, (
+                {"error": "No JSON payload provided or payload is null."},
+                400,
+            )
         return request_data, None
     except Exception as e:
         logging.error("Error parsing JSON body: %s", e)
         return None, ({"error": "Invalid JSON payload or Content-Type."}, 400)
+
 
 # --- CORS Handling ---
 @app.after_request
@@ -115,7 +120,9 @@ def add_cors_headers(response):
     logging.info(f"CORS headers added to response for origin: {ALLOWED_ORIGINS}")
     return response
 
+
 # --- Flask Routes ---
+
 
 @app.route("/", methods=["GET", "OPTIONS"])
 def get_user_data():
@@ -136,13 +143,19 @@ def get_user_data():
             user_doc_data = user_doc.to_dict()
             encrypted_token = user_doc_data.get("github_access_token")
             if encrypted_token and isinstance(encrypted_token, str):
-                logging.info(f"Found github_access_token for user {user_id}, attempting decryption.")
+                logging.info(
+                    f"Found github_access_token for user {user_id}, attempting decryption."
+                )
                 decrypted_token = _decrypt_data_kms(encrypted_token)
                 if decrypted_token is not None:
                     user_doc_data["github_access_token"] = decrypted_token
-                    logging.info(f"Successfully decrypted github_access_token for user {user_id}.")
+                    logging.info(
+                        f"Successfully decrypted github_access_token for user {user_id}."
+                    )
                 else:
-                    logging.error(f"Failed to decrypt github_access_token for user {user_id}.")
+                    logging.error(
+                        f"Failed to decrypt github_access_token for user {user_id}."
+                    )
                     user_doc_data["github_access_token"] = None
                     user_doc_data["github_access_token_error"] = "decryption_failed"
             return jsonify(user_doc_data), 200
@@ -151,6 +164,7 @@ def get_user_data():
     except Exception as e:
         logging.error("Firestore GET error for user %s: %s", user_id, e)
         return jsonify({"error": "An error occurred while retrieving user data."}), 500
+
 
 @app.route("/", methods=["POST", "OPTIONS"])
 def create_update_user_data():
@@ -168,8 +182,15 @@ def create_update_user_data():
         error_dict, status_code = error_response_tuple
         return jsonify(error_dict), status_code
 
-    if not (isinstance(request_data, dict) and request_data.get("cookieConsent") == "true"):
-        return jsonify({"error": "'cookieConsent' field must be present and set to 'true'."}), 400
+    if not (
+        isinstance(request_data, dict) and request_data.get("cookieConsent") == "true"
+    ):
+        return (
+            jsonify(
+                {"error": "'cookieConsent' field must be present and set to 'true'."}
+            ),
+            400,
+        )
 
     try:
         user_doc_ref = db.collection("users").document(user_id)
@@ -179,13 +200,16 @@ def create_update_user_data():
             "displayName": auth_info.get("name"),
             **request_data,
         }
-        data_to_store_cleaned = {k: v for k, v in data_to_store.items() if v is not None}
+        data_to_store_cleaned = {
+            k: v for k, v in data_to_store.items() if v is not None
+        }
         user_doc_ref.set(data_to_store_cleaned, merge=True)
         logging.info("User document for %s created/updated via POST.", user_id)
         return jsonify(data_to_store_cleaned), 200
     except Exception as e:
         logging.error("Firestore POST error for user %s: %s", user_id, e)
         return jsonify({"error": "An error occurred while saving user data."}), 500
+
 
 @app.route("/", methods=["PUT", "OPTIONS"])
 def update_user_data_put():
@@ -204,14 +228,20 @@ def update_user_data_put():
         return jsonify(error_dict), status_code
 
     if not isinstance(request_data, dict) or not request_data:
-        return jsonify({"error": "Request body must be a non-empty JSON object for PUT."}), 400
+        return (
+            jsonify({"error": "Request body must be a non-empty JSON object for PUT."}),
+            400,
+        )
 
     try:
         user_doc_ref = db.collection("users").document(user_id)
         user_doc_ref.update(request_data)
         updated_doc = user_doc_ref.get()
         if not updated_doc.exists:
-            logging.error("Firestore PUT error: Document %s not found after presumed update.", user_id)
+            logging.error(
+                "Firestore PUT error: Document %s not found after presumed update.",
+                user_id,
+            )
             return jsonify({"error": "Failed to retrieve document after update."}), 500
         logging.info("User document for %s updated via PUT.", user_id)
         return jsonify(updated_doc.to_dict()), 200
@@ -221,6 +251,7 @@ def update_user_data_put():
     except Exception as e:
         logging.error("Firestore PUT error for user %s: %s", user_id, e)
         return jsonify({"error": "An error occurred while updating user data."}), 500
+
 
 @app.route("/", methods=["DELETE", "OPTIONS"])
 def delete_user_data():
@@ -239,13 +270,17 @@ def delete_user_data():
         if doc_snapshot.exists:
             user_doc_ref.delete()
             logging.info("Firestore document for user %s deleted.", user_id)
-            return jsonify({"message": f"User data for {user_id} deleted successfully."}), 200
+            return (
+                jsonify({"message": f"User data for {user_id} deleted successfully."}),
+                200,
+            )
         else:
             logging.info("No Firestore document to delete for user %s.", user_id)
             return make_response("", 204)
     except Exception as e:
         logging.error("Error deleting Firestore document for user %s: %s", user_id, e)
         return jsonify({"error": "An error occurred while deleting user data."}), 500
+
 
 # --- Main Cloud Function Handler (delegates to Flask app) ---
 @functions_framework.http

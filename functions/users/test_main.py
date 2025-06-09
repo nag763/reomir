@@ -17,10 +17,11 @@ MockKmsClientGlobal = kms_client_patcher.start()
 import main as main_module  # Import the module itself
 # main.py's "db = firestore.Client()" and "KMS_CLIENT = kms.KeyManagementServiceClient()"
 # should use the globally patched mocks.
-from main import app # Import the Flask app object
+from main import app  # Import the Flask app object
 
 # Define a client for the Flask app for use in tests
 client = app.test_client()
+
 
 @pytest.fixture(autouse=True)
 def auto_reset_mocks(request):
@@ -78,7 +79,9 @@ def teardown_module(module):
     kms_client_patcher.stop()
 
 
-def _get_auth_headers(user_id="test-user-123", email="test@example.com", name="Test User"):
+def _get_auth_headers(
+    user_id="test-user-123", email="test@example.com", name="Test User"
+):
     user_info = {"sub": user_id, "email": email, "name": name}
     user_info_json = json.dumps(user_info)
     user_info_b64 = base64.b64encode(user_info_json.encode("utf-8")).decode("utf-8")
@@ -88,33 +91,50 @@ def _get_auth_headers(user_id="test-user-123", email="test@example.com", name="T
 # Test for basic GET request
 def test_get_user_exists(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
-    mock_doc_snapshot.to_dict.return_value = {"uid": "test-user-123", "email": "test@example.com"}
+    mock_doc_snapshot.to_dict.return_value = {
+        "uid": "test-user-123",
+        "email": "test@example.com",
+    }
 
     headers = _get_auth_headers(user_id="test-user-123")
     response = client.get("/", headers=headers)
 
     assert response.status_code == 200
     assert response.json == {"uid": "test-user-123", "email": "test@example.com"}
-    assert response.headers["Access-Control-Allow-Origin"] == "*" # or specific if configured
+    assert (
+        response.headers["Access-Control-Allow-Origin"] == "*"
+    )  # or specific if configured
     mock_db.collection.assert_called_once_with("users")
     mock_db.collection.return_value.document.assert_called_once_with("test-user-123")
 
 
 # --- Tests for KMS Decryption ---
-@patch.dict(os.environ, {
-    "KMS_KEY_NAME": "test-key", "KMS_KEY_RING": "test-key-ring",
-    "KMS_LOCATION": "test-location", "GOOGLE_CLOUD_PROJECT": "test-gcp-project"})
+@patch.dict(
+    os.environ,
+    {
+        "KMS_KEY_NAME": "test-key",
+        "KMS_KEY_RING": "test-key-ring",
+        "KMS_LOCATION": "test-location",
+        "GOOGLE_CLOUD_PROJECT": "test-gcp-project",
+    },
+)
 def test_get_user_with_encrypted_token_success(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     mock_kms = auto_reset_mocks["kms"]
 
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
-        "uid": "test-user-kms", "email": "kms@example.com",
-        "github_access_token": "sample_encrypted_token_base64"}
+        "uid": "test-user-kms",
+        "email": "kms@example.com",
+        "github_access_token": "sample_encrypted_token_base64",
+    }
 
     mock_decrypt_response = mock.Mock()
     mock_decrypt_response.plaintext = b"decrypted_access_token"
@@ -128,26 +148,38 @@ def test_get_user_with_encrypted_token_success(auto_reset_mocks):
     assert response.json["github_access_token"] == "decrypted_access_token"
     assert "github_access_token_error" not in response.json
 
-    mock_kms.crypto_key_path.assert_called_once_with("test-gcp-project", "test-location", "test-key-ring", "test-key")
-    mock_kms.decrypt.assert_called_once() # Fuller assertion can check name and ciphertext
+    mock_kms.crypto_key_path.assert_called_once_with(
+        "test-gcp-project", "test-location", "test-key-ring", "test-key"
+    )
+    mock_kms.decrypt.assert_called_once()  # Fuller assertion can check name and ciphertext
     # Example of checking specific args if needed:
     # call_args = mock_kms.decrypt.call_args
     # self.assertEqual(call_args[1]['name'], expected_key_path)
     # self.assertEqual(call_args[1]['ciphertext'], base64.b64decode("sample_encrypted_token_base64"))
 
 
-@patch.dict(os.environ, {
-    "KMS_KEY_NAME": "test-key", "KMS_KEY_RING": "test-key-ring",
-    "KMS_LOCATION": "test-location", "GOOGLE_CLOUD_PROJECT": "test-gcp-project"})
+@patch.dict(
+    os.environ,
+    {
+        "KMS_KEY_NAME": "test-key",
+        "KMS_KEY_RING": "test-key-ring",
+        "KMS_LOCATION": "test-location",
+        "GOOGLE_CLOUD_PROJECT": "test-gcp-project",
+    },
+)
 def test_get_user_with_encrypted_token_failure(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     mock_kms = auto_reset_mocks["kms"]
 
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
-        "uid": "test-user-kms-fail", "email": "kmsfail@example.com",
-        "github_access_token": "another_encrypted_token_base64"}
+        "uid": "test-user-kms-fail",
+        "email": "kmsfail@example.com",
+        "github_access_token": "another_encrypted_token_base64",
+    }
 
     mock_kms.decrypt.side_effect = Exception("KMS Decryption Failed")
 
@@ -164,9 +196,14 @@ def test_get_user_with_encrypted_token_failure(auto_reset_mocks):
 def test_get_user_no_github_token(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     mock_kms = auto_reset_mocks["kms"]
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
-    mock_doc_snapshot.to_dict.return_value = {"uid": "test-user-no-token", "email": "notoken@example.com"}
+    mock_doc_snapshot.to_dict.return_value = {
+        "uid": "test-user-no-token",
+        "email": "notoken@example.com",
+    }
 
     headers = _get_auth_headers(user_id="test-user-no-token")
     response = client.get("/", headers=headers)
@@ -181,11 +218,15 @@ def test_get_user_no_github_token(auto_reset_mocks):
 def test_get_user_github_token_not_string(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     mock_kms = auto_reset_mocks["kms"]
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = True
     mock_doc_snapshot.to_dict.return_value = {
-        "uid": "test-user-invalid-token-type", "email": "invalidtype@example.com",
-        "github_access_token": False} # Not a string
+        "uid": "test-user-invalid-token-type",
+        "email": "invalidtype@example.com",
+        "github_access_token": False,
+    }  # Not a string
 
     headers = _get_auth_headers(user_id="test-user-invalid-token-type")
     response = client.get("/", headers=headers)
@@ -201,15 +242,26 @@ def test_get_user_github_token_not_string(auto_reset_mocks):
 def test_post_user_valid_data(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     user_id = "test-user-post"
-    headers = _get_auth_headers(user_id=user_id, email="post@example.com", name="Post User")
-    request_data = {"cookieConsent": "true", "emailMarketing": False, "someOtherData": "value"}
+    headers = _get_auth_headers(
+        user_id=user_id, email="post@example.com", name="Post User"
+    )
+    request_data = {
+        "cookieConsent": "true",
+        "emailMarketing": False,
+        "someOtherData": "value",
+    }
 
     response = client.post("/", json=request_data, headers=headers)
 
     assert response.status_code == 200
     expected_stored_data = {
-        "uid": user_id, "email": "post@example.com", "displayName": "Post User",
-        "cookieConsent": "true", "emailMarketing": False, "someOtherData": "value"}
+        "uid": user_id,
+        "email": "post@example.com",
+        "displayName": "Post User",
+        "cookieConsent": "true",
+        "emailMarketing": False,
+        "someOtherData": "value",
+    }
     assert response.json == expected_stored_data
     mock_db.collection.return_value.document.return_value.set.assert_called_once_with(
         expected_stored_data, merge=True
@@ -223,12 +275,20 @@ def test_post_user_invalid_cookie_consent(auto_reset_mocks):
     # Missing cookieConsent
     response_missing = client.post("/", json={"otherField": True}, headers=headers)
     assert response_missing.status_code == 400
-    assert response_missing.json["error"] == "'cookieConsent' field must be present and set to 'true'."
+    assert (
+        response_missing.json["error"]
+        == "'cookieConsent' field must be present and set to 'true'."
+    )
 
     # Wrong type for cookieConsent
-    response_wrong_type = client.post("/", json={"cookieConsent": True}, headers=headers) # boolean true, not "true"
+    response_wrong_type = client.post(
+        "/", json={"cookieConsent": True}, headers=headers
+    )  # boolean true, not "true"
     assert response_wrong_type.status_code == 400
-    assert response_wrong_type.json["error"] == "'cookieConsent' field must be present and set to 'true'."
+    assert (
+        response_wrong_type.json["error"]
+        == "'cookieConsent' field must be present and set to 'true'."
+    )
 
     mock_db.collection.return_value.document.return_value.set.assert_not_called()
 
@@ -237,11 +297,17 @@ def test_post_user_no_json_body(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     headers = _get_auth_headers()
     # Sending data that is not application/json, or empty data with wrong content type
-    response = client.post("/", data="not json", headers=headers, content_type="text/plain")
+    response = client.post(
+        "/", data="not json", headers=headers, content_type="text/plain"
+    )
 
-    assert response.status_code == 400 # Flask's get_json() will fail
-    assert "Invalid JSON payload" in response.json["error"] or "Failed to decode JSON object" in response.json["error"]
+    assert response.status_code == 400  # Flask's get_json() will fail
+    assert (
+        "Invalid JSON payload" in response.json["error"]
+        or "Failed to decode JSON object" in response.json["error"]
+    )
     mock_db.collection.return_value.document.return_value.set.assert_not_called()
+
 
 # --- PUT Tests ---
 def test_put_user_valid_data(auto_reset_mocks):
@@ -253,11 +319,15 @@ def test_put_user_valid_data(auto_reset_mocks):
     # Mock the get call that happens after update to return the updated data
     mock_updated_doc_snapshot = mock.Mock()
     mock_updated_doc_snapshot.exists = True
-    mock_updated_doc_snapshot.to_dict.return_value = request_data # Simulate it returns the updated fields
+    mock_updated_doc_snapshot.to_dict.return_value = (
+        request_data  # Simulate it returns the updated fields
+    )
 
     doc_ref = mock_db.collection.return_value.document.return_value
-    doc_ref.update.return_value = None # update itself returns None
-    doc_ref.get.return_value = mock_updated_doc_snapshot # get after update returns the new snapshot
+    doc_ref.update.return_value = None  # update itself returns None
+    doc_ref.get.return_value = (
+        mock_updated_doc_snapshot  # get after update returns the new snapshot
+    )
 
     response = client.put("/", json=request_data, headers=headers)
 
@@ -272,7 +342,9 @@ def test_put_user_not_found(auto_reset_mocks):
     headers = _get_auth_headers(user_id=user_id)
     request_data = {"emailMarketing": True}
 
-    mock_db.collection.return_value.document.return_value.update.side_effect = main_module.firestore.exceptions.NotFound("Doc not found")
+    mock_db.collection.return_value.document.return_value.update.side_effect = (
+        main_module.firestore.exceptions.NotFound("Doc not found")
+    )
 
     response = client.put("/", json=request_data, headers=headers)
 
@@ -283,10 +355,13 @@ def test_put_user_not_found(auto_reset_mocks):
 def test_put_user_empty_json_body(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
     headers = _get_auth_headers()
-    response = client.put("/", json={}, headers=headers) # Empty JSON object
+    response = client.put("/", json={}, headers=headers)  # Empty JSON object
 
     assert response.status_code == 400
-    assert response.json["error"] == "Request body must be a non-empty JSON object for PUT."
+    assert (
+        response.json["error"]
+        == "Request body must be a non-empty JSON object for PUT."
+    )
     mock_db.collection.return_value.document.return_value.update.assert_not_called()
 
 
@@ -310,19 +385,25 @@ def test_delete_user_not_exists(auto_reset_mocks):
     user_id = "test-user-delete-nonexistent"
     headers = _get_auth_headers(user_id=user_id)
 
-    mock_db.collection.return_value.document.return_value.get.return_value.exists = False
+    mock_db.collection.return_value.document.return_value.get.return_value.exists = (
+        False
+    )
 
     response = client.delete("/", headers=headers)
 
     assert response.status_code == 204
-    assert response.data == b"" # make_response('', 204)
+    assert response.data == b""  # make_response('', 204)
     mock_db.collection.return_value.document.return_value.delete.assert_not_called()
 
 
 # --- Generic Error and Auth Tests ---
-def test_get_user_not_exists(auto_reset_mocks): # Renamed from original test_get_user_not_exists to avoid conflict
+def test_get_user_not_exists(
+    auto_reset_mocks,
+):  # Renamed from original test_get_user_not_exists to avoid conflict
     mock_db = auto_reset_mocks["db"]
-    mock_doc_snapshot = mock_db.collection.return_value.document.return_value.get.return_value
+    mock_doc_snapshot = (
+        mock_db.collection.return_value.document.return_value.get.return_value
+    )
     mock_doc_snapshot.exists = False
 
     headers = _get_auth_headers(user_id="test-user-unknown")
@@ -330,7 +411,9 @@ def test_get_user_not_exists(auto_reset_mocks): # Renamed from original test_get
 
     assert response.status_code == 204
     assert response.data == b""
-    mock_db.collection.return_value.document.assert_called_once_with("test-user-unknown")
+    mock_db.collection.return_value.document.assert_called_once_with(
+        "test-user-unknown"
+    )
 
 
 def test_options_request(auto_reset_mocks):
@@ -339,19 +422,21 @@ def test_options_request(auto_reset_mocks):
 
     assert response.status_code == 204
     assert response.data == b""
-    assert response.headers["Access-Control-Allow-Origin"] == "*" # or specific if configured
+    assert (
+        response.headers["Access-Control-Allow-Origin"] == "*"
+    )  # or specific if configured
     assert "GET" in response.headers["Access-Control-Allow-Methods"]
     assert "POST" in response.headers["Access-Control-Allow-Methods"]
     assert "PUT" in response.headers["Access-Control-Allow-Methods"]
     assert "DELETE" in response.headers["Access-Control-Allow-Methods"]
     assert "Content-Type" in response.headers["Access-Control-Allow-Headers"]
     assert "Authorization" in response.headers["Access-Control-Allow-Headers"]
-    mock_db.collection.assert_not_called() # No DB interaction for OPTIONS
+    mock_db.collection.assert_not_called()  # No DB interaction for OPTIONS
 
 
 def test_missing_auth_header(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
-    response = client.get("/", headers={}) # No auth header
+    response = client.get("/", headers={})  # No auth header
 
     assert response.status_code == 401
     assert response.json["error"] == "Authentication information not found."
@@ -381,15 +466,22 @@ def test_malformed_auth_header_not_json(auto_reset_mocks):
 
 def test_auth_header_missing_user_id_claim(auto_reset_mocks):
     mock_db = auto_reset_mocks["db"]
-    headers = _get_auth_headers(user_id=None) # Will create a header without 'sub' if user_id is None
+    headers = _get_auth_headers(
+        user_id=None
+    )  # Will create a header without 'sub' if user_id is None
     # Need to adjust _get_auth_headers or create a specific malformed header
-    user_info_no_sub = {"email": "test@example.com", "name": "Test User"} # No 'sub'
+    user_info_no_sub = {"email": "test@example.com", "name": "Test User"}  # No 'sub'
     user_info_json_no_sub = json.dumps(user_info_no_sub)
-    user_info_b64_no_sub = base64.b64encode(user_info_json_no_sub.encode("utf-8")).decode("utf-8")
+    user_info_b64_no_sub = base64.b64encode(
+        user_info_json_no_sub.encode("utf-8")
+    ).decode("utf-8")
     malformed_headers = {"X-Apigateway-Api-Userinfo": user_info_b64_no_sub}
 
     response = client.get("/", headers=malformed_headers)
 
     assert response.status_code == 400
-    assert response.json["error"] == "User ID claim ('sub') not found in authentication information."
+    assert (
+        response.json["error"]
+        == "User ID claim ('sub') not found in authentication information."
+    )
     mock_db.collection.assert_not_called()

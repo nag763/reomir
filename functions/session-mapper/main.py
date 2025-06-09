@@ -9,7 +9,7 @@ import google.auth
 import google.auth.transport.requests
 import google.oauth2.id_token
 import requests
-from flask import Flask, request, make_response # Added Flask and make_response
+from flask import Flask, make_response, request
 
 # Note: google.oauth2.id_token is NOT directly used if fetching ID token via impersonated_credentials
 
@@ -28,8 +28,6 @@ AUTHORIZATION_HEADER = (
 )
 USER_ID_CLAIM = "sub"
 
-# CORS_HEADERS removed
-
 
 def _get_auth_user_info(req: request):
     """
@@ -42,31 +40,29 @@ def _get_auth_user_info(req: request):
                 "error": "Authentication information not found (X-Apigateway-Api-Userinfo missing)."
             },
             401,
-            # CORS_HEADERS, # To be handled by @app.after_request
         )
     try:
+        # Pad the base64 string if necessary
         auth_info_header_padded = auth_info_header + "=" * (-len(auth_info_header) % 4)
         auth_info_decoded = base64.b64decode(auth_info_header_padded).decode("utf-8")
         auth_info_json = json.loads(auth_info_decoded)
         if not auth_info_json.get(USER_ID_CLAIM):
             msg = f"User ID claim ('{USER_ID_CLAIM}') not found in authentication information."
-            return None, ({"error": msg}, 400) # CORS_HEADERS removed
+            return None, ({"error": msg}, 400)
         return auth_info_json, None
     except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
         logging.error("Error decoding authentication information: %s", e)
         return None, (
             {"error": "Invalid authentication information format."},
             400,
-            # CORS_HEADERS, # To be handled by @app.after_request
         )
 
-@app.route("/apps/<app_id>/users/<user_id>/sessions", methods=["POST", "OPTIONS"])
-def map_session(app_id, user_id):
+
+@app.route("/", methods=["GET", "POST", "OPTIONS"])
+def map_session():
     """Handles session mapping requests."""
     logging.info(
-        "Flask route /apps/%s/users/%s/sessions hit with method: %s",
-        app_id,
-        user_id,
+        "Flask route / hit with method: %s",
         request.method,
     )
 
@@ -84,24 +80,9 @@ def map_session(app_id, user_id):
         # error_response is a tuple (data, status_code), we need to make it a Flask response
         return make_response(json.dumps(error_response[0]), error_response[1])
 
-
     user_id_from_claims = auth_info[
         USER_ID_CLAIM
     ]  # Original end-user ID from initial token
-
-    # Validate that user_id from path matches the one from token claims
-    if user_id != user_id_from_claims:
-        logging.error(
-            "User ID in path (%s) does not match user ID in token (%s).",
-            user_id,
-            user_id_from_claims,
-        )
-        return (
-            {
-                "error": "User ID in path does not match user ID in token."
-            },
-            403,
-        )
 
     # Validate that app_id from path matches the one from X-App header
     x_app_value = request.headers.get(X_APP_HEADER)
@@ -111,39 +92,24 @@ def map_session(app_id, user_id):
             {"error": f"'{X_APP_HEADER}' header not found."},
             400,
         )
-    if app_id != x_app_value:
-        logging.error(
-            "App ID in path (%s) does not match X-App header (%s).",
-            app_id,
-            x_app_value,
-        )
-        return (
-            {
-                "error": "App ID in path does not match X-App header."
-            },
-            400,
-        )
-
-    target_url_for_agent = f"{CLOUDRUN_AGENT_URL}/apps/{x_app_value}/users/{user_id_from_claims}/sessions"
+    target_url_for_agent = (
+        f"{CLOUDRUN_AGENT_URL}/apps/{x_app_value}/users/{user_id_from_claims}/sessions"
+    )
     logging.info("Attempting to POST to agent at: %s", target_url_for_agent)
 
     try:
         auth_req = google.auth.transport.requests.Request()
-        id_token = google.oauth2.id_token.fetch_id_token(
-            auth_req, target_url_for_agent
-        )
+        id_token = google.oauth2.id_token.fetch_id_token(auth_req, target_url_for_agent)
 
-        # Do NOT log the full id_token in production, only snippets or hashes if necessary for debugging.
+        # Do NOT log the full id_token in production.
         logging.info("Successfully fetched ID token for agent.")
-
 
         downstream_headers = {
             AUTHORIZATION_HEADER: f"Bearer {id_token}",
-            X_APP_HEADER: x_app_value, # Forward the X-App header
+            X_APP_HEADER: x_app_value,  # Forward the X-App header
         }
 
         # Log the Authorization header received by this function (from API Gateway)
-        # This token is NOT used for the downstream call when impersonating.
         auth_header_from_gateway = request.headers.get(AUTHORIZATION_HEADER)
         if auth_header_from_gateway:
             logging.info(
@@ -159,14 +125,19 @@ def map_session(app_id, user_id):
                 "No Authorization header received by this function from API Gateway."
             )
 
+        # The original code was missing a way to forward the request body.
+        # This gets the raw body from the incoming request.
+        request_body = request.get_data()
 
         response = requests.post(
-            target_url_for_agent, timeout=10, headers=downstream_headers
+            target_url_for_agent,
+            data=request_body,
+            timeout=10,
+            headers=downstream_headers,
         )
         response.raise_for_status()
 
         logging.info("Agent responded with status: %s", response.status_code)
-        # final_headers will be handled by @app.after_request
         # Create a Flask response
         flask_response = make_response(response.content, response.status_code)
         if "Content-Type" in response.headers:
@@ -210,22 +181,23 @@ def map_session(app_id, user_id):
             500,
         )
 
+
 def _build_cors_preflight_response():
     """Builds a response for CORS preflight OPTIONS requests."""
     response = make_response()
-    # Headers will be added by @app.after_request
     response.status_code = 204
     return response
+
 
 @app.after_request
 def add_cors_headers(response):
     """Adds CORS headers to the response."""
     response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGINS
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS" # Should reflect allowed methods
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-App, X-End-User-ID" # Kept original for now
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = (
+        "Content-Type, Authorization, X-App, X-End-User-ID, X-Apigateway-Api-Userinfo"
+    )
     response.headers["Access-Control-Max-Age"] = "3600"
-    # Allow credentials if your frontend sends them (e.g., cookies, Authorization header)
-    # response.headers['Access-Control-Allow-Credentials'] = 'true'
     logging.info("CORS headers added to response by @app.after_request.")
     return response
 

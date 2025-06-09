@@ -354,7 +354,9 @@ def handle_status_route():
         return jsonify({"error": "Failed to retrieve status."}), 500
 
 
-@app.route("/api/v1/github/disconnect", methods=["POST", "DELETE", "OPTIONS"]) # Added POST
+@app.route(
+    "/api/v1/github/disconnect", methods=["POST", "DELETE", "OPTIONS"]
+)  # Added POST
 def handle_disconnect_route():
     _initialize_clients_if_needed()
     if request.method == "OPTIONS":

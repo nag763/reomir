@@ -9,9 +9,12 @@ import google.auth
 import google.auth.transport.requests
 import google.oauth2.id_token
 import requests
-from flask import request
+from flask import Flask, request, make_response # Added Flask and make_response
 
 # Note: google.oauth2.id_token is NOT directly used if fetching ID token via impersonated_credentials
+
+# --- Flask App Initialization ---
+app = Flask(__name__)
 
 # --- Configuration from Environment Variables ---
 ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "*")
@@ -25,12 +28,7 @@ AUTHORIZATION_HEADER = (
 )
 USER_ID_CLAIM = "sub"
 
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": ALLOWED_ORIGINS,
-    "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-App, X-End-User-ID",
-    "Access-Control-Max-Age": "3600",
-}
+# CORS_HEADERS removed
 
 
 def _get_auth_user_info(req: request):
@@ -44,7 +42,7 @@ def _get_auth_user_info(req: request):
                 "error": "Authentication information not found (X-Apigateway-Api-Userinfo missing)."
             },
             401,
-            CORS_HEADERS,
+            # CORS_HEADERS, # To be handled by @app.after_request
         )
     try:
         auth_info_header_padded = auth_info_header + "=" * (-len(auth_info_header) % 4)
@@ -52,140 +50,194 @@ def _get_auth_user_info(req: request):
         auth_info_json = json.loads(auth_info_decoded)
         if not auth_info_json.get(USER_ID_CLAIM):
             msg = f"User ID claim ('{USER_ID_CLAIM}') not found in authentication information."
-            return None, ({"error": msg}, 400, CORS_HEADERS)
+            return None, ({"error": msg}, 400) # CORS_HEADERS removed
         return auth_info_json, None
     except (TypeError, ValueError, AttributeError, json.JSONDecodeError) as e:
         logging.error("Error decoding authentication information: %s", e)
         return None, (
             {"error": "Invalid authentication information format."},
             400,
-            CORS_HEADERS,
+            # CORS_HEADERS, # To be handled by @app.after_request
         )
 
+@app.route("/apps/<app_id>/users/<user_id>/sessions", methods=["POST", "OPTIONS"])
+def map_session(app_id, user_id):
+    """Handles session mapping requests."""
+    logging.info(
+        "Flask route /apps/%s/users/%s/sessions hit with method: %s",
+        app_id,
+        user_id,
+        request.method,
+    )
 
-@functions_framework.http
-def handler(req: request):
-    """Handles HTTP requests, impersonates a SA to call a downstream service."""
-
-    logging.info("Request method: %s", req.method)
-    incoming_headers = {key: value for key, value in req.headers.items()}
-    logging.info("Incoming request headers: %s", json.dumps(incoming_headers, indent=2))
-
-    if req.method == "OPTIONS":
-        return "", 204, CORS_HEADERS
+    if request.method == "OPTIONS":
+        # Preflight request. Reply successfully:
+        return _build_cors_preflight_response()
 
     # --- Essential Configuration Check ---
     if not CLOUDRUN_AGENT_URL:
         logging.error("CLOUDRUN_AGENT_URL environment variable is not set.")
-        return {"error": "Agent URL configuration error."}, 500, CORS_HEADERS
+        return {"error": "Agent URL configuration error."}, 500
 
-    # Log the Authorization header received by this function (from API Gateway)
-    # This token is NOT used for the downstream call when impersonating.
-    auth_header_from_gateway = req.headers.get(AUTHORIZATION_HEADER)
-    if auth_header_from_gateway:
-        logging.info(
-            "Authorization header received from API Gateway (not used for downstream impersonated call): %s...",
-            (
-                auth_header_from_gateway[:20]
-                if len(auth_header_from_gateway) > 20
-                else auth_header_from_gateway
-            ),
+    auth_info, error_response = _get_auth_user_info(request)
+    if error_response:
+        # error_response is a tuple (data, status_code), we need to make it a Flask response
+        return make_response(json.dumps(error_response[0]), error_response[1])
+
+
+    user_id_from_claims = auth_info[
+        USER_ID_CLAIM
+    ]  # Original end-user ID from initial token
+
+    # Validate that user_id from path matches the one from token claims
+    if user_id != user_id_from_claims:
+        logging.error(
+            "User ID in path (%s) does not match user ID in token (%s).",
+            user_id,
+            user_id_from_claims,
         )
-    else:
-        logging.warning(
-            "No Authorization header received by this function from API Gateway."
+        return (
+            {
+                "error": "User ID in path does not match user ID in token."
+            },
+            403,
         )
 
-    match req.method:
-        case "GET":
-            auth_info, error_response = _get_auth_user_info(req)
-            if error_response:
-                return error_response
+    # Validate that app_id from path matches the one from X-App header
+    x_app_value = request.headers.get(X_APP_HEADER)
+    if not x_app_value:
+        logging.error("'%s' header not found.", X_APP_HEADER)
+        return (
+            {"error": f"'{X_APP_HEADER}' header not found."},
+            400,
+        )
+    if app_id != x_app_value:
+        logging.error(
+            "App ID in path (%s) does not match X-App header (%s).",
+            app_id,
+            x_app_value,
+        )
+        return (
+            {
+                "error": "App ID in path does not match X-App header."
+            },
+            400,
+        )
 
-            user_id_from_claims = auth_info[
-                USER_ID_CLAIM
-            ]  # Original end-user ID from initial token
+    target_url_for_agent = f"{CLOUDRUN_AGENT_URL}/apps/{x_app_value}/users/{user_id_from_claims}/sessions"
+    logging.info("Attempting to POST to agent at: %s", target_url_for_agent)
 
-            x_app_value = req.headers.get(X_APP_HEADER)
-            if not x_app_value:
-                logging.error("'%s' header not found.", X_APP_HEADER)
-                return (
-                    {"error": f"'{X_APP_HEADER}' header not found."},
-                    400,
-                    CORS_HEADERS,
-                )
+    try:
+        auth_req = google.auth.transport.requests.Request()
+        id_token = google.oauth2.id_token.fetch_id_token(
+            auth_req, target_url_for_agent
+        )
 
-            target_url_for_agent = f"{CLOUDRUN_AGENT_URL}/apps/{x_app_value}/users/{user_id_from_claims}/sessions"
-            logging.info("Attempting to POST to agent at: %s", target_url_for_agent)
+        # Do NOT log the full id_token in production, only snippets or hashes if necessary for debugging.
+        logging.info("Successfully fetched ID token for agent.")
 
-            try:
 
-                auth_req = google.auth.transport.requests.Request()
-                id_token = google.oauth2.id_token.fetch_id_token(
-                    auth_req, target_url_for_agent
-                )
+        downstream_headers = {
+            AUTHORIZATION_HEADER: f"Bearer {id_token}",
+            X_APP_HEADER: x_app_value, # Forward the X-App header
+        }
 
-                logging.warning("Bearer %s", id_token)
+        # Log the Authorization header received by this function (from API Gateway)
+        # This token is NOT used for the downstream call when impersonating.
+        auth_header_from_gateway = request.headers.get(AUTHORIZATION_HEADER)
+        if auth_header_from_gateway:
+            logging.info(
+                "Authorization header received from API Gateway (not used for downstream impersonated call): %s...",
+                (
+                    auth_header_from_gateway[:20]
+                    if len(auth_header_from_gateway) > 20
+                    else auth_header_from_gateway
+                ),
+            )
+        else:
+            logging.warning(
+                "No Authorization header received by this function from API Gateway."
+            )
 
-                downstream_headers = {
-                    AUTHORIZATION_HEADER: f"Bearer {id_token}",
-                    X_APP_HEADER: x_app_value,
-                }
 
-                response = requests.post(
-                    target_url_for_agent, timeout=10, headers=downstream_headers
-                )
-                response.raise_for_status()
+        response = requests.post(
+            target_url_for_agent, timeout=10, headers=downstream_headers
+        )
+        response.raise_for_status()
 
-                logging.info("Agent responded with status: %s", response.status_code)
-                final_headers = CORS_HEADERS.copy()
-                if "Content-Type" in response.headers:
-                    final_headers["Content-Type"] = response.headers["Content-Type"]
-                return response.content, response.status_code, final_headers
+        logging.info("Agent responded with status: %s", response.status_code)
+        # final_headers will be handled by @app.after_request
+        # Create a Flask response
+        flask_response = make_response(response.content, response.status_code)
+        if "Content-Type" in response.headers:
+            flask_response.headers["Content-Type"] = response.headers["Content-Type"]
+        return flask_response
 
-            except google.auth.exceptions.DefaultCredentialsError as e:
-                logging.error(
-                    "Could not find default credentials for the Cloud Function itself: %s",
-                    e,
-                )
-                return (
-                    {"error": "Service account configuration issue for the function."},
-                    500,
-                    CORS_HEADERS,
-                )
-            except requests.exceptions.RequestException as e:
-                agent_response_text = (
-                    e.response.text if e.response is not None else "No response text"
-                )
-                agent_status_code = (
-                    e.response.status_code if e.response is not None else 502
-                )
-                logging.error("Error calling agent at %s: %s", target_url_for_agent, e)
-                logging.error(
-                    "Agent response status: %s, text: %s",
-                    agent_status_code,
-                    agent_response_text,
-                )
-                return (
-                    {
-                        "error": "Failed to communicate with agent service.",
-                        "agent_status": agent_status_code,
-                        "agent_response": agent_response_text,
-                    },
-                    agent_status_code,
-                    CORS_HEADERS,
-                )
-            except Exception as e:
-                logging.error("An unexpected error occurred: %s", e, exc_info=True)
-                return (
-                    {
-                        "error": "An unexpected internal error occurred.",
-                        "details": str(e),
-                    },
-                    500,
-                    CORS_HEADERS,
-                )
+    except google.auth.exceptions.DefaultCredentialsError as e:
+        logging.error(
+            "Could not find default credentials for the Cloud Function itself: %s", e
+        )
+        return (
+            {"error": "Service account configuration issue for the function."},
+            500,
+        )
+    except requests.exceptions.RequestException as e:
+        agent_response_text = (
+            e.response.text if e.response is not None else "No response text"
+        )
+        agent_status_code = e.response.status_code if e.response is not None else 502
+        logging.error("Error calling agent at %s: %s", target_url_for_agent, e)
+        logging.error(
+            "Agent response status: %s, text: %s",
+            agent_status_code,
+            agent_response_text,
+        )
+        return (
+            {
+                "error": "Failed to communicate with agent service.",
+                "agent_status": agent_status_code,
+                "agent_response": agent_response_text,
+            },
+            agent_status_code,
+        )
+    except Exception as e:
+        logging.error("An unexpected error occurred: %s", e, exc_info=True)
+        return (
+            {
+                "error": "An unexpected internal error occurred.",
+                "details": str(e),
+            },
+            500,
+        )
 
-        case _:
-            logging.warning("Method not allowed: %s", req.method)
-            return {"error": "Method not allowed."}, 405, CORS_HEADERS
+def _build_cors_preflight_response():
+    """Builds a response for CORS preflight OPTIONS requests."""
+    response = make_response()
+    # Headers will be added by @app.after_request
+    response.status_code = 204
+    return response
+
+@app.after_request
+def add_cors_headers(response):
+    """Adds CORS headers to the response."""
+    response.headers["Access-Control-Allow-Origin"] = ALLOWED_ORIGINS
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS" # Should reflect allowed methods
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-App, X-End-User-ID" # Kept original for now
+    response.headers["Access-Control-Max-Age"] = "3600"
+    # Allow credentials if your frontend sends them (e.g., cookies, Authorization header)
+    # response.headers['Access-Control-Allow-Credentials'] = 'true'
+    logging.info("CORS headers added to response by @app.after_request.")
+    return response
+
+
+@functions_framework.http
+def handler(req: request):
+    """
+    Handles HTTP requests by dispatching them to the Flask app.
+    This function is the entry point for Google Cloud Functions.
+    """
+    # Create a request context for the Flask app to work correctly.
+    with app.request_context(req.environ):
+        # Let Flask handle the request routing and processing.
+        flask_response = app.full_dispatch_request()
+        return flask_response
